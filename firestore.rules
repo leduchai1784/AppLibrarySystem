@@ -1,0 +1,65 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper: kiểm tra đã đăng nhập
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Helper: kiểm tra có phải admin (tránh lỗi khi users doc chưa tồn tại)
+    function isAdmin() {
+      let userRef = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isSignedIn() && exists(userRef) && get(userRef).data.role == 'admin';
+    }
+
+    // users: người dùng đọc/sửa chính mình; khi đăng ký tạo mới chính mình
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // categories: Admin full; Sinh viên chỉ đọc
+    match /categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // books: Admin full; Sinh viên chỉ đọc
+    match /books/{bookId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // borrow_records: Admin full; Sinh viên đọc của mình, tạo khi mượn
+    match /borrow_records/{recordId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.userId || isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // notifications: mỗi user chỉ đọc thông báo của mình
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // statistics: mọi user đã đăng nhập đọc được; chỉ admin ghi
+    match /statistics/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // library_settings: mọi user đọc; chỉ admin ghi
+    match /library_settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
