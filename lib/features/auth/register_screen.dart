@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_text_styles.dart';
 import '../../core/routes/app_routes.dart';
+import '../../gen/l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -41,6 +42,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _onRegister() async {
+    final t = AppLocalizations.of(context)!;
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
@@ -49,39 +51,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập họ tên')),
+        SnackBar(content: Text(t.pleaseEnterFullName)),
       );
       return;
     }
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập email')),
+        SnackBar(content: Text(t.pleaseEnterEmail)),
       );
       return;
     }
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập số điện thoại')),
+        SnackBar(content: Text(t.pleaseEnterPhone)),
       );
       return;
     }
     if (password.isEmpty || password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mật khẩu phải có ít nhất 6 ký tự')),
+        SnackBar(content: Text(t.passwordMinLength)),
       );
       return;
     }
     if (password != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Xác nhận mật khẩu không khớp')),
+        SnackBar(content: Text(t.passwordMismatch)),
       );
       return;
     }
     if (!_agreeTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng đồng ý với Điều khoản và Chính sách bảo mật'),
-        ),
+        SnackBar(content: Text(t.agreeTermsRequired)),
       );
       return;
     }
@@ -100,9 +100,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await AuthService.signOut();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản trước khi đăng nhập.',
+            t.registerSuccessVerifyEmail,
           ),
           backgroundColor: Colors.green,
         ),
@@ -110,16 +110,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      String message = 'Đăng ký thất bại';
+      String message = t.registerFailed;
       switch (e.code) {
         case 'email-already-in-use':
-          message = 'Email này đã được sử dụng. Vui lòng đăng nhập hoặc dùng email khác';
+          message = t.emailAlreadyInUse;
           break;
         case 'invalid-email':
-          message = 'Email không hợp lệ';
+          message = t.invalidEmail;
           break;
         case 'weak-password':
-          message = 'Mật khẩu quá yếu, vui lòng dùng mật khẩu mạnh hơn';
+          message = t.weakPassword;
           break;
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,7 +128,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(content: Text(t.errorPrefix('$e'))),
         );
       }
     } finally {
@@ -142,223 +142,349 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
+    final inputTheme = InputDecorationTheme(
+      filled: true,
+      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: theme.colorScheme.primary.withValues(alpha: 0.85),
+          width: 1.5,
+        ),
+      ),
+      hintStyle: TextStyle(fontSize: 14, color: theme.hintColor),
+    );
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: _goBack,
         ),
-        title: const Text('Library System'),
+        title: Text(
+          t.registerTitle,
+          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 16,
-            bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 8,
+              bottom: 12 + viewInsetsBottom,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Theme(
+                data: theme.copyWith(inputDecorationTheme: inputTheme),
                 child: Column(
                   children: [
-                    Icon(
-                      Icons.person_add_alt_1,
-                      size: 48,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tạo tài khoản mới',
-                      style: theme.textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    _buildRegisterCard(context),
+                    const SizedBox(height: 14),
+                    _buildLoginText(context),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              _buildForm(context),
-              const SizedBox(height: 16),
-              _buildLoginText(context),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildForm(BuildContext context) {
+  Widget _buildRegisterHeader(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+        shape: BoxShape.circle,
       ),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+      child: Icon(
+        Icons.person_add_alt_1_rounded,
+        size: 28,
+        color: theme.colorScheme.primary,
+      ),
+    );
+  }
+
+  Widget _buildRegisterCard(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Họ và tên', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text('Email', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text('Số điện thoại', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.phone_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text('Mật khẩu', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      gradient: const LinearGradient(
-                        colors: [
-                          Colors.red,
-                          Colors.orange,
-                          Colors.yellow,
-                          Colors.green,
-                        ],
+            Container(height: 3, color: theme.colorScheme.primary),
+            Material(
+              color: theme.colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(child: _buildRegisterHeader(context)),
+                    const SizedBox(height: 10),
+                    Text(
+                      t.createNewAccount,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        height: 1.15,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Độ mạnh mật khẩu',
-                  style: theme.textTheme.labelSmall,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('Xác nhận mật khẩu', style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureConfirmPassword
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Checkbox(
-                  value: _agreeTerms,
-                  onChanged: (value) {
-                    setState(() {
-                      _agreeTerms = value ?? false;
-                    });
-                  },
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: RichText(
-                    softWrap: true,
-                    text: TextSpan(
-                      text: 'Tôi đồng ý với ',
-                      style: theme.textTheme.bodySmall,
-                      children: [
-                        TextSpan(
-                          text: 'Điều khoản sử dụng',
-                          style: (theme.textTheme.bodySmall ?? AppTextStyles.caption).copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          recognizer: TapGestureRecognizer()..onTap = () {},
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _nameController,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: t.fullNameLabel,
+                        prefixIcon: Icon(
+                          Icons.person_outline_rounded,
+                          size: 20,
+                          color: theme.colorScheme.primary,
                         ),
-                        TextSpan(text: ' và ', style: theme.textTheme.bodySmall),
-                        TextSpan(
-                          text: 'Chính sách bảo mật',
-                          style: (theme.textTheme.bodySmall ?? AppTextStyles.caption).copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: t.emailLabel,
+                        prefixIcon: Icon(
+                          Icons.mail_outline_rounded,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: t.phoneLabel,
+                        prefixIcon: Icon(
+                          Icons.phone_outlined,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.next,
+                      style: const TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: t.passwordLabel,
+                        prefixIcon: Icon(
+                          Icons.lock_outline_rounded,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
                           ),
-                          recognizer: TapGestureRecognizer()..onTap = () {},
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(3),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Colors.red,
+                                  Colors.orange,
+                                  Colors.yellow,
+                                  Colors.green,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          t.passwordStrength,
+                          style: theme.textTheme.labelSmall?.copyWith(fontSize: 11),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _onRegister,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      textInputAction: TextInputAction.done,
+                      style: const TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: t.confirmPasswordLabel,
+                        prefixIcon: Icon(
+                          Icons.lock_outline_rounded,
+                          size: 20,
+                          color: theme.colorScheme.primary,
                         ),
-                      )
-                    : const Text('ĐĂNG KÝ'),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Checkbox(
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          value: _agreeTerms,
+                          onChanged: (value) {
+                            setState(() {
+                              _agreeTerms = value ?? false;
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: RichText(
+                            softWrap: true,
+                            text: TextSpan(
+                              text: '${t.iAgreeWith} ',
+                              style: theme.textTheme.bodySmall?.copyWith(fontSize: 13, height: 1.35),
+                              children: [
+                                TextSpan(
+                                  text: t.termsOfUse,
+                                  style: (theme.textTheme.bodySmall ?? AppTextStyles.caption).copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                  recognizer: TapGestureRecognizer()..onTap = () {},
+                                ),
+                                TextSpan(
+                                  text: ' ${t.andWord} ',
+                                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 13, height: 1.35),
+                                ),
+                                TextSpan(
+                                  text: t.privacyPolicy,
+                                  style: (theme.textTheme.bodySmall ?? AppTextStyles.caption).copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                  recognizer: TapGestureRecognizer()..onTap = () {},
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _onRegister,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    t.signUp.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -368,16 +494,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildLoginText(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final baseStyle = theme.textTheme.bodySmall ?? AppTextStyles.caption;
     return Center(
       child: RichText(
         text: TextSpan(
-          text: 'Đã có tài khoản? ',
+          text: '${t.alreadyHaveAccountPrefix} ',
           style: baseStyle,
           children: [
             TextSpan(
-              text: 'Đăng nhập',
+              text: t.signInAction,
               style: baseStyle.copyWith(
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,

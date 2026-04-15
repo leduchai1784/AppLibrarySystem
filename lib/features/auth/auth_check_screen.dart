@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../services/auth_service.dart';
@@ -35,6 +35,28 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
       }
 
       await AuthService.reloadUserRole();
+
+      if (!mounted) return;
+
+      if (await AuthService.rejectWebSessionIfNotStaff()) {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.login,
+          arguments: const {'staffOnlyWeb': true},
+        );
+        return;
+      }
+
+      if (await AuthService.rejectMobileSessionIfAdmin()) {
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.login,
+          arguments: const {'adminUseWebOnly': true},
+        );
+        return;
+      }
 
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, AppRoutes.dashboard);

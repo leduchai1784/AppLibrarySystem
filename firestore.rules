@@ -2,64 +2,127 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper: kiểm tra đã đăng nhập
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper: kiểm tra có phải admin (tránh lỗi khi users doc chưa tồn tại)
+    // users.role phải khớp đúng chuỗi (đồng bộ app): 'admin' | 'manager' | 'student'
     function isAdmin() {
       let userRef = /databases/$(database)/documents/users/$(request.auth.uid);
       return isSignedIn() && exists(userRef) && get(userRef).data.role == 'admin';
     }
 
-    // users: người dùng đọc/sửa chính mình; khi đăng ký tạo mới chính mình
-    match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    function isManager() {
+      let userRef = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isSignedIn() && exists(userRef) && get(userRef).data.role == 'manager';
     }
 
-    // categories: Admin full; Sinh viên chỉ đọc
+    function isStaff() {
+      return isAdmin() || isManager();
+    }
+
+    // users
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isStaff());
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Manager chỉ được tăng totalBorrowed; admin sửa rộng hơn. Dùng isStaff + hasOnly để đồng bộ với client (số nguyên).
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId
+        || isAdmin()
+        || (isStaff() && request.resource.data.diff(resource.data).changedKeys().hasOnly(['totalBorrowed']))
+      );
+      allow delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      
+      match /recommendations/{docId} {
+        allow read: if isSignedIn() && (request.auth.uid == userId || isStaff());
+        allow write: if false; // Chỉ backend/admin SDK (Python) được ghi
+      }
+    }
+
     match /categories/{categoryId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isStaff();
     }
 
-    // books: Admin full; Sinh viên chỉ đọc
     match /books/{bookId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create, delete: if isStaff();
+
+      allow update: if isStaff() || (
+        isSignedIn()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly(['availableQuantity', 'updatedAt'])
+        && (
+          request.resource.data.availableQuantity == resource.data.availableQuantity - 1
+          || request.resource.data.availableQuantity == resource.data.availableQuantity + 1
+        )
+        && request.resource.data.availableQuantity >= 0
+        && request.resource.data.availableQuantity <= resource.data.quantity
+      );
     }
 
-    // borrow_records: Admin full; Sinh viên đọc của mình, tạo khi mượn
     match /borrow_records/{recordId} {
       allow read: if isSignedIn() && (
-        request.auth.uid == resource.data.userId || isAdmin()
+        request.auth.uid == resource.data.userId || isStaff()
       );
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+
+      // Tạo phiếu: (1) admin hoặc manager — tạo cho bất kỳ userId; (2) sinh viên — chỉ userId == auth.uid (tự mượn).
+      allow create: if isSignedIn()
+        && request.resource.data.status == 'borrowing'
+        && (
+          request.resource.data.userId == request.auth.uid
+          || isStaff()
+        );
+
+      allow update: if isStaff() || (
+        isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && resource.data.status == 'borrowing'
+        && (request.resource.data.status == 'returned' || request.resource.data.status == 'late')
+        && request.resource.data.returnDate != null
+      );
+
+      allow delete: if isStaff();
     }
 
-    // notifications: mỗi user chỉ đọc thông báo của mình
     match /notifications/{notificationId} {
       allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isAdmin()
+        resource.data.userId == request.auth.uid || isStaff()
       );
-      allow create: if isSignedIn();
+      // Chỉ cho phép tạo thông báo cho chính mình hoặc do nhân sự vận hành tạo.
+      allow create: if isSignedIn()
+        && (request.resource.data.userId == request.auth.uid || isStaff());
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // statistics: mọi user đã đăng nhập đọc được; chỉ admin ghi
     match /statistics/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    // library_settings: mọi user đọc; chỉ admin ghi
     match /library_settings/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isStaff();
+    }
+
+    // borrow_history: dùng cho gợi ý sách (ưu tiên không cho client tự ghi; Cloud Functions ghi bằng admin SDK)
+    match /authors/{authorId} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+    }
+
+    match /genres/{genreId} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+    }
+
+    match /stationery/{itemId} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
     }
   }
 }

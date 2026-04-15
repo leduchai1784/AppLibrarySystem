@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_text_styles.dart';
 import '../../core/routes/app_routes.dart';
+import '../../gen/l10n/app_localizations.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -40,11 +41,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _onSendResetEmail() async {
+    final t = AppLocalizations.of(context)!;
     final email = _emailController.text.trim();
 
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập email')),
+        SnackBar(content: Text(t.emailLabel)),
       );
       return;
     }
@@ -53,7 +55,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     if (!emailRegex.hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Định dạng email không hợp lệ')),
+        SnackBar(content: Text(t.invalidEmailFormat)),
       );
       return;
     }
@@ -65,11 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư (kể cả Spam).',
-          ),
-        ),
+        SnackBar(content: Text(t.resetEmailSentIfExists)),
       );
 
       Navigator.pushReplacementNamed(context, AppRoutes.login);
@@ -77,17 +75,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       // Với lý do bảo mật, không tiết lộ email tồn tại hay không
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư (kể cả Spam).',
-            ),
-          ),
+          SnackBar(content: Text(t.resetEmailSentIfExists)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Có lỗi xảy ra, vui lòng thử lại sau. Chi tiết: $e')),
+          SnackBar(content: Text(t.tryAgainLaterDetails('$e'))),
         );
       }
     } finally {
@@ -101,10 +95,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quên mật khẩu'),
+        title: Text(t.forgotPasswordTitle),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -113,29 +108,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Đặt lại mật khẩu',
+                t.resetPassword,
                 style: theme.textTheme.headlineLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Nhập email bạn đã dùng để đăng ký. '
-                'Nếu email tồn tại trong hệ thống, chúng tôi sẽ gửi link đặt lại mật khẩu cho bạn.',
+                t.forgotPasswordIntro,
                 style: theme.textTheme.bodySmall ?? AppTextStyles.caption,
               ),
               const SizedBox(height: 24),
               Text(
-                'Email',
+                t.emailLabel,
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
+                decoration: InputDecoration(prefixIcon: const Icon(Icons.email_outlined), hintText: t.emailLabel),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -151,14 +143,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('GỬI LINK ĐẶT LẠI MẬT KHẨU'),
+                      : Text(t.sendResetLink.toUpperCase()),
                 ),
               ),
               const SizedBox(height: 12),
               Center(
                 child: TextButton(
                   onPressed: _goBackToLogin,
-                  child: const Text('Quay lại đăng nhập'),
+                  child: Text(t.backToLogin),
                 ),
               ),
             ],

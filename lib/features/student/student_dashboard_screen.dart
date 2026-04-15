@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
+import '../../gen/l10n/app_localizations.dart';
+import '../../widgets/notification_bell_button.dart';
 import '../borrow/borrow_history_screen.dart';
 import '../borrow/current_borrows_screen.dart';
 import '../dashboard/library_settings_tab.dart';
-import '../dashboard/scan_book_tab.dart';
 import '../dashboard/student_home_tab.dart';
 
 /// Giao diện Dashboard dành riêng cho Sinh viên
@@ -19,69 +19,46 @@ class StudentDashboardScreen extends StatefulWidget {
 class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
   int _currentIndex = 0;
 
-  late final List<Widget> _tabs = [
-    const StudentHomeTab(),
-    const CurrentBorrowsScreen(embedInTab: true),
-    const ScanBookTab(),
-    const BorrowHistoryScreen(embedInTab: true),
-    const LibrarySettingsTab(),
-  ];
-
-  static const _navItems = [
-    _NavItem(Icons.home_outlined, Icons.home, 'Trang chủ'),
-    _NavItem(Icons.bookmark_outline, Icons.bookmark, 'Đang mượn'),
-    _NavItem(Icons.qr_code_scanner, Icons.qr_code_scanner, 'Quét'),
-    _NavItem(Icons.history, Icons.history, 'Lịch sử'),
-    _NavItem(Icons.settings_outlined, Icons.settings, 'Cài đặt'),
-  ];
+  List<Widget> _buildTabChildren() {
+    return [
+      StudentHomeTab(
+        onGoToHistoryTab: () => setState(() => _currentIndex = 2),
+      ),
+      const CurrentBorrowsScreen(embedInTab: true),
+      const BorrowHistoryScreen(embedInTab: true),
+      const LibrarySettingsTab(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final navItems = [
+      _NavItem(Icons.home_outlined, Icons.home, t.tabHome),
+      _NavItem(Icons.bookmark_outline, Icons.bookmark, t.tabBorrowing),
+      _NavItem(Icons.history, Icons.history, t.tabHistory),
+      _NavItem(Icons.settings_outlined, Icons.settings, t.tabSettings),
+    ];
     return Scaffold(
-      appBar: _buildAppBar(),
+      appBar: _buildAppBar(t),
       body: IndexedStack(
         index: _currentIndex,
-        children: _tabs,
+        children: _buildTabChildren(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: _navItems
-            .map((item) => BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  activeIcon: Icon(item.activeIcon),
-                  label: item.label,
-                ))
-            .toList(),
-      ),
+      bottomNavigationBar: _buildBottomBar(theme, navItems),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(AppLocalizations t) {
     switch (_currentIndex) {
       case 0:
         return AppBar(
           leading: IconButton(icon: const Icon(Icons.menu), onPressed: () {}),
-          title: const Text('Library System - Sinh viên'),
+          title: Text(t.studentAppTitle),
           centerTitle: true,
           actions: [
-            IconButton(
-              icon: Stack(
-                children: [
-                  const Icon(Icons.notifications_none),
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
-                      constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
-                      child: const Center(child: Text('3', style: TextStyle(color: Colors.white, fontSize: 10))),
-                    ),
-                  ),
-                ],
-              ),
+            NotificationBellButton(
               onPressed: () => Navigator.pushNamed(context, AppRoutes.notifications),
             ),
             IconButton(
@@ -91,22 +68,83 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           ],
         );
       case 1:
-        return AppBar(title: const Text('Sách đang mượn'), centerTitle: true);
+        return AppBar(title: Text(t.borrowedBooksTitle), centerTitle: true);
       case 2:
-        return AppBar(title: const Text('Quét QR sách'), centerTitle: true);
-      case 3:
         return AppBar(
-          title: const Text('Lịch sử mượn'),
+          title: Text(t.borrowHistoryTitle),
           centerTitle: true,
           actions: [
             IconButton(icon: const Icon(Icons.filter_list), onPressed: () {}),
           ],
         );
-      case 4:
-        return AppBar(title: const Text('Cài đặt'), centerTitle: true);
+      case 3:
+        return AppBar(title: Text(t.settingsTitle), centerTitle: true);
       default:
-        return AppBar(title: const Text('Library System - Sinh viên'));
+        return AppBar(title: Text(t.studentAppTitle));
     }
+  }
+
+  Widget _buildBottomBar(ThemeData theme, List<_NavItem> navItems) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    const barHeight = 74.0;
+
+    final activeColor = theme.colorScheme.primary;
+    final inactiveColor = theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ?? Colors.grey;
+
+    return SizedBox(
+      height: barHeight + bottomPad,
+      child: Container(
+        height: barHeight + bottomPad,
+        padding: EdgeInsets.fromLTRB(14, 10, 14, bottomPad),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          border: Border(
+            top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _BottomNavItem(
+              selected: _currentIndex == 0,
+              icon: navItems[0].icon,
+              activeIcon: navItems[0].activeIcon,
+              label: navItems[0].label,
+              color: activeColor,
+              inactiveColor: inactiveColor,
+              onTap: () => setState(() => _currentIndex = 0),
+            ),
+            _BottomNavItem(
+              selected: _currentIndex == 1,
+              icon: navItems[1].icon,
+              activeIcon: navItems[1].activeIcon,
+              label: navItems[1].label,
+              color: activeColor,
+              inactiveColor: inactiveColor,
+              onTap: () => setState(() => _currentIndex = 1),
+            ),
+            _BottomNavItem(
+              selected: _currentIndex == 2,
+              icon: navItems[2].icon,
+              activeIcon: navItems[2].activeIcon,
+              label: navItems[2].label,
+              color: activeColor,
+              inactiveColor: inactiveColor,
+              onTap: () => setState(() => _currentIndex = 2),
+            ),
+            _BottomNavItem(
+              selected: _currentIndex == 3,
+              icon: navItems[3].icon,
+              activeIcon: navItems[3].activeIcon,
+              label: navItems[3].label,
+              color: activeColor,
+              inactiveColor: inactiveColor,
+              onTap: () => setState(() => _currentIndex = 3),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -115,4 +153,52 @@ class _NavItem {
   final IconData activeIcon;
   final String label;
   const _NavItem(this.icon, this.activeIcon, this.label);
+}
+
+class _BottomNavItem extends StatelessWidget {
+  final bool selected;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final Color color;
+  final Color inactiveColor;
+  final VoidCallback onTap;
+
+  const _BottomNavItem({
+    required this.selected,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.color,
+    required this.inactiveColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final iconToShow = selected ? activeIcon : icon;
+    final itemColor = selected ? color : inactiveColor;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(iconToShow, color: itemColor),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: itemColor,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

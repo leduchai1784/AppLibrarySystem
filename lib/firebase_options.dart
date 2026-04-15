@@ -8,10 +8,7 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, Tar
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions chưa cấu hình cho Web. '
-        'Chạy: dart run flutterfire_cli:flutterfire configure',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -43,7 +40,6 @@ class DefaultFirebaseOptions {
     }
   }
 
-  /// Cấu hình Android từ google-services.json (project: applibrarysystem)
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyD4ivpPiEVxmTwX2i-8qim4SV3_bUhIm9c',
     appId: '1:632430558689:android:d1a88c0dc9d30ff5ae66a0',
@@ -51,4 +47,17 @@ class DefaultFirebaseOptions {
     projectId: 'applibrarysystem',
     storageBucket: 'applibrarysystem.firebasestorage.app',
   );
+
+  /// Cấu hình Android từ google-services.json (project: applibrarysystem)
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyB4twJK7_QYPSJEcQC0BxMUukW_tuZ9bDQ',
+    appId: '1:632430558689:web:bb680e02cc8be59cae66a0',
+    messagingSenderId: '632430558689',
+    projectId: 'applibrarysystem',
+    authDomain: 'applibrarysystem.firebaseapp.com',
+    storageBucket: 'applibrarysystem.firebasestorage.app',
+    measurementId: 'G-LJFJVQGVGV',
+  );
+
 }

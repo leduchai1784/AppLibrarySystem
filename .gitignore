@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase Admin / Python scripts — không commit private key (mọi thư mục)
+serviceAccountKey.json

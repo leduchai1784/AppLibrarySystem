@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "firebase use": "applibrarysystem",
+    "prod": "applibrarysystem"
+  },
+  "targets": {},
+  "etags": {}
+}

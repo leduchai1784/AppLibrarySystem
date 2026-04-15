@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../gen/l10n/app_localizations.dart';
 
 /// Màn hình thanh toán phạt trả trễ - UI only
 class FineScreen extends StatelessWidget {
@@ -9,11 +10,18 @@ class FineScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+
+    // UI demo data only
+    final totalFine = t.fineDemoTotalAmount;
+    final breakdown = t.fineDemoTotalExplanation;
+    final itemFine = t.fineDemoLineAmount;
+    final itemLate = t.fineDemoLineLateLabel;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thanh toán phạt'),
+        title: Text(t.finePaymentTitle),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -21,7 +29,7 @@ class FineScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Card(
-              color: AppColors.error.withOpacity(0.1),
+              color: AppColors.error.withValues(alpha: 0.1),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -30,41 +38,41 @@ class FineScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Tổng tiền phạt', style: AppTextStyles.h2),
-                        Text('50.000 đ', style: AppTextStyles.h1.copyWith(color: AppColors.error)),
+                        Text(t.totalFineLabel, style: AppTextStyles.h2),
+                        Text(totalFine, style: AppTextStyles.h1.copyWith(color: AppColors.error)),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Trả trễ 5 ngày x 10.000 đ/ngày', style: AppTextStyles.caption),
+                    Text(breakdown, style: AppTextStyles.caption),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
-            Text('Chi tiết phạt', style: theme.textTheme.titleLarge),
+            Text(t.fineDetailsTitle, style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             ...List.generate(2, (i) {
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: Icon(Icons.menu_book, color: AppColors.primary),
-                  title: Text('Sách mẫu ${i + 1}', style: AppTextStyles.body),
-                  subtitle: Text('Trả trễ 2 ngày', style: AppTextStyles.caption),
-                  trailing: Text('20.000 đ', style: AppTextStyles.body.copyWith(color: AppColors.error)),
+                  title: Text('${t.bookLabel} ${i + 1}', style: AppTextStyles.body),
+                  subtitle: Text(itemLate, style: AppTextStyles.caption),
+                  trailing: Text(itemFine, style: AppTextStyles.body.copyWith(color: AppColors.error)),
                 ),
               );
             }),
             const SizedBox(height: 24),
-            Text('Phương thức thanh toán', style: theme.textTheme.titleMedium),
+            Text(t.paymentMethodTitle, style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             RadioListTile<String>(
-              title: const Text('Tiền mặt tại thư viện'),
+              title: Text(t.cashAtLibrary),
               value: 'cash',
               groupValue: 'cash',
               onChanged: (_) {},
             ),
             RadioListTile<String>(
-              title: const Text('Chuyển khoản'),
+              title: Text(t.bankTransfer),
               value: 'transfer',
               groupValue: 'cash',
               onChanged: (_) {},
@@ -75,7 +83,7 @@ class FineScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {},
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-                child: const Text('THANH TOÁN 50.000 Đ'),
+                child: Text(t.payAmountButton(t.fineDemoTotalAmount)),
               ),
             ),
           ],

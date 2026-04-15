@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_text_styles.dart';
+import '../../gen/l10n/app_localizations.dart';
 
 /// Widget placeholder dùng chung cho Admin và Student
 class PlaceholderContent extends StatelessWidget {
@@ -17,6 +18,7 @@ class PlaceholderContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -27,7 +29,7 @@ class PlaceholderContent extends StatelessWidget {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: onTap,
-            child: const Text('Xem chi tiết'),
+            child: Text(t.viewDetails),
           ),
         ],
       ),

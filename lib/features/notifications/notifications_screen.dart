@@ -1,82 +1,166 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../gen/l10n/app_localizations.dart';
 
-/// Màn hình thông báo (sắp đến hạn trả) - UI only
+/// Thông báo từ Firestore (`notifications`) — cập nhật realtime.
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final mockNotifications = [
-      _NotificationItem(
-        title: 'Sắp đến hạn trả sách',
-        body: 'Sách "Flutter cơ bản" sẽ đến hạn vào 05/03/2026',
-        time: '10 phút trước',
-        type: 'due_soon',
-      ),
-      _NotificationItem(
-        title: 'Nhắc nhở trả sách',
-        body: 'Sách "Dart programming" còn 2 ngày đến hạn',
-        time: '2 giờ trước',
-        type: 'reminder',
-      ),
-      _NotificationItem(
-        title: 'Xác nhận mượn sách',
-        body: 'Phiếu mượn sách "Clean Code" đã được tạo thành công',
-        time: 'Hôm qua',
-        type: 'success',
-      ),
-    ];
+    final t = AppLocalizations.of(context)!;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(t.notificationsTitle)),
+        body: Center(child: Text(t.commonSignIn)),
+      );
+    }
+
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('notifications');
+    if (!AppUser.isStaff) {
+      query = query.where('userId', isEqualTo: uid);
+    }
+    query = query.orderBy('createdAt', descending: true).limit(80);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Thông báo'),
+        title: Text(t.notificationsTitle),
         actions: [
           TextButton(
-            onPressed: () {},
-            child: const Text('Đánh dấu đã đọc'),
+            onPressed: () => _markAllRead(context, uid),
+            child: Text(t.markAllRead),
           ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: mockNotifications.length,
-        itemBuilder: (context, index) {
-          final n = mockNotifications[index];
-          Color iconColor = AppColors.primary;
-          if (n.type == 'due_soon') iconColor = AppColors.warning;
-          if (n.type == 'reminder') iconColor = AppColors.error;
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: query.snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  t.notifLoadFailed('${snapshot.error}'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return Center(
+              child: Text(
+                AppUser.isStaff ? t.notifEmptyStaff : t.notifEmptyStudent,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            );
+          }
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(12),
-              leading: CircleAvatar(
-                backgroundColor: iconColor.withOpacity(0.2),
-                child: Icon(Icons.notifications, color: iconColor),
-              ),
-              title: Text(n.title, style: AppTextStyles.h3),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(n.body, style: AppTextStyles.body),
-                  const SizedBox(height: 4),
-                  Text(n.time, style: AppTextStyles.small),
-                ],
-              ),
-              onTap: () {},
-            ),
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final d = docs[index];
+              final data = d.data();
+              final loc = AppLocalizations.of(context)!;
+              final title = (data['title'] ?? loc.pushFallbackTitle) as String;
+              final body = (data['body'] ?? '') as String;
+              final read = data['read'] == true;
+              final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+              final time = _formatRelative(createdAt, loc);
+
+              Color iconColor = AppColors.primary;
+              final titleLower = title.toLowerCase();
+              if (titleLower.contains('hạn') ||
+                  titleLower.contains('trễ') ||
+                  titleLower.contains('late') ||
+                  titleLower.contains('due') ||
+                  titleLower.contains('overdue')) {
+                iconColor = AppColors.warning;
+              }
+              if (titleLower.contains('trả') || titleLower.contains('return')) {
+                iconColor = AppColors.success;
+              }
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                color: read ? null : AppColors.primary.withValues(alpha: 0.04),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(12),
+                  leading: CircleAvatar(
+                    backgroundColor: iconColor.withValues(alpha: 0.2),
+                    child: Icon(Icons.notifications, color: iconColor),
+                  ),
+                  title: Text(title, style: AppTextStyles.h3),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(body, style: AppTextStyles.body),
+                      const SizedBox(height: 4),
+                      Text(time, style: AppTextStyles.small),
+                    ],
+                  ),
+                  onTap: () async {
+                    if (read) return;
+                    try {
+                      await d.reference.update({'read': true});
+                    } catch (_) {}
+                  },
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
-}
 
-class _NotificationItem {
-  final String title, body, time, type;
-  _NotificationItem({required this.title, required this.body, required this.time, required this.type});
+  static String _formatRelative(DateTime? dt, AppLocalizations t) {
+    if (dt == null) return '—';
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return t.timeJustNow;
+    if (diff.inMinutes < 60) return t.timeAgoMinutes(diff.inMinutes);
+    if (diff.inHours < 24) return t.timeAgoHours(diff.inHours);
+    if (diff.inDays < 7) return t.timeAgoDays(diff.inDays);
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  }
+
+  static Future<void> _markAllRead(BuildContext context, String uid) async {
+    try {
+      Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection('notifications');
+      if (!AppUser.isStaff) {
+        q = q.where('userId', isEqualTo: uid);
+      }
+      final snap = await q.limit(200).get();
+      final batch = FirebaseFirestore.instance.batch();
+      for (final d in snap.docs) {
+        if (d.data()['read'] != true) {
+          batch.update(d.reference, {'read': true});
+        }
+      }
+      await batch.commit();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.markedAllRead)),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.errorPrefix('$e'))),
+        );
+      }
+    }
+  }
 }

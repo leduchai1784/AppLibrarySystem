@@ -1,14 +1,25 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_text_styles.dart';
 import '../../core/routes/app_routes.dart';
+import '../../gen/l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    this.showWebStaffDeniedMessage = false,
+    this.showAdminUseWebMessage = false,
+  });
+
+  /// Sau khi từ chối phiên web (sinh viên): hiện SnackBar giải thích.
+  final bool showWebStaffDeniedMessage;
+
+  /// Sau khi admin mở app mobile: nhắc đăng nhập trên web.
+  final bool showAdminUseWebMessage;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -17,42 +28,48 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _rememberMe = true;
+  final FocusNode _emailFocus = FocusNode();
+  final FocusNode _passwordFocus = FocusNode();
   bool _obscurePassword = true;
   bool _isLoading = false;
-
-  static const _keyRememberEmail = 'remembered_email';
 
   @override
   void initState() {
     super.initState();
-    _loadRememberedEmail();
-  }
-
-  Future<void> _loadRememberedEmail() async {
-    if (!_rememberMe) return;
-    final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString(_keyRememberEmail);
-    if (email != null && mounted) {
-      _emailController.text = email;
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final t = AppLocalizations.of(context)!;
+      if (widget.showWebStaffDeniedMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.loginSnackWebStaffOnly)),
+        );
+      }
+      if (widget.showAdminUseWebMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.loginSnackAdminWebOnly)),
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _emailFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
   Future<void> _onLogin() async {
+    final t = AppLocalizations.of(context)!;
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng nhập email và mật khẩu')),
+          SnackBar(content: Text(t.enterEmailPassword)),
         );
       }
       return;
@@ -71,44 +88,50 @@ class _LoginScreenState extends State<LoginScreen> {
         await FirebaseAuth.instance.signOut();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Email của bạn chưa được xác thực. Vui lòng kiểm tra hộp thư và bấm vào link xác thực trước khi đăng nhập.',
-              ),
-            ),
+            SnackBar(content: Text(t.verifyEmailBeforeLogin)),
           );
         }
         return;
       }
 
-      if (_rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_keyRememberEmail, email);
-      } else {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_keyRememberEmail);
+      if (!mounted) return;
+
+      if (await AuthService.rejectWebSessionIfNotStaff()) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.loginSnackWebStaffOnly)),
+        );
+        return;
+      }
+
+      if (await AuthService.rejectMobileSessionIfAdmin()) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.loginSnackAdminWebOnly)),
+        );
+        return;
       }
 
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      String message = 'Đăng nhập thất bại';
+      String message = t.loginFailed;
       switch (e.code) {
         case 'user-not-found':
-          message = 'Không tìm thấy tài khoản với email này';
+          message = t.authErrUserNotFound;
           break;
         case 'wrong-password':
-          message = 'Mật khẩu không đúng';
+          message = t.authErrWrongPassword;
           break;
         case 'invalid-email':
-          message = 'Email không hợp lệ';
+          message = t.invalidEmail;
           break;
         case 'invalid-credential':
-          message = 'Email hoặc mật khẩu không đúng';
+          message = t.authErrInvalidCredential;
           break;
         case 'user-disabled':
-          message = 'Tài khoản đã bị vô hiệu hóa';
+          message = t.authErrUserDisabled;
           break;
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,8 +139,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       if (mounted) {
+        final t = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(content: Text(t.genericErrorWithMessage('$e'))),
         );
       }
     } finally {
@@ -140,20 +164,42 @@ class _LoginScreenState extends State<LoginScreen> {
       await AuthService.signInWithGoogle();
 
       if (!mounted) return;
+
+      if (await AuthService.rejectWebSessionIfNotStaff()) {
+        if (!mounted) return;
+        final t = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.loginSnackGoogleWebStaffOnly)),
+        );
+        return;
+      }
+
+      if (await AuthService.rejectMobileSessionIfAdmin()) {
+        if (!mounted) return;
+        final t = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(t.loginSnackAdminWebOnly)),
+        );
+        return;
+      }
+
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      String message = 'Đăng nhập với Google thất bại';
+      final t = AppLocalizations.of(context)!;
+      String message = t.loginGoogleFailed;
       if (e.code == 'network-request-failed') {
-        message = 'Không thể kết nối mạng. Vui lòng kiểm tra lại internet.';
+        message = t.authErrNetwork;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
     } catch (e) {
       if (mounted) {
+        final t = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(content: Text(t.genericErrorWithMessage('$e'))),
         );
       }
     } finally {
@@ -164,6 +210,24 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
+    final inputTheme = InputDecorationTheme(
+      filled: true,
+      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.85), width: 1.5),
+      ),
+      hintStyle: TextStyle(fontSize: 14, color: theme.hintColor),
+    );
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
@@ -171,22 +235,17 @@ class _LoginScreenState extends State<LoginScreen> {
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
             padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              top: 16,
-              bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+              left: 20,
+              right: 20,
+              top: 12,
+              bottom: 12 + viewInsetsBottom,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 16),
-                _buildHeader(context),
-                const SizedBox(height: 24),
-                _buildLoginCard(context),
-                const SizedBox(height: 16),
-                _buildRegisterText(context),
-              ],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Theme(
+                data: theme.copyWith(inputDecorationTheme: inputTheme),
+                child: _buildLoginCard(context),
+              ),
             ),
           ),
         ),
@@ -196,166 +255,254 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
-            color: theme.cardColor,
+            color: theme.colorScheme.primary.withValues(alpha: 0.1),
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: theme.shadowColor.withValues(alpha: 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
           ),
           child: Icon(
-            Icons.qr_code_2,
-            size: 48,
+            Icons.local_library_rounded,
+            size: 28,
             color: theme.colorScheme.primary,
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          'Library System',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w700,
+        Positioned(
+          right: -4,
+          bottom: -4,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: theme.dividerColor.withValues(alpha: 0.65),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              Icons.qr_code_2_rounded,
+              size: 14,
+              color: theme.colorScheme.secondary,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Quản lý thư viện QR của bạn',
-          style: theme.textTheme.bodySmall,
         ),
       ],
     );
   }
 
   Widget _buildLoginCard(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Đăng nhập',
-              style: theme.textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Email / Tên đăng nhập',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Mật khẩu',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: _rememberMe,
-                    onChanged: (value) {
-                      setState(() {
-                        _rememberMe = value ?? false;
-                      });
-                    },
-                    title: const Text('Ghi nhớ đăng nhập'),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ),
-                TextButton(
-                  onPressed: _goToForgotPassword,
-                  child: Text(
-                    'Quên mật khẩu?',
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontSize: 14,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(height: 3, color: theme.colorScheme.primary),
+          Material(
+            color: theme.colorScheme.surface,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(child: _buildHeader(context)),
+                  const SizedBox(height: 10),
+                  Text(
+                    t.loginTitle,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      height: 1.15,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _onLogin,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  const SizedBox(height: 4),
+                  Text(
+                    kIsWeb ? t.loginSubtitleWeb : t.loginSubtitleMobile,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 13,
+                      height: 1.35,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _emailController,
+                    focusNode: _emailFocus,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) {
+                      FocusScope.of(context).requestFocus(_passwordFocus);
+                    },
+                    style: const TextStyle(fontSize: 15),
+                    decoration: InputDecoration(
+                      labelText: t.emailLabel,
+                      prefixIcon: Icon(
+                        Icons.mail_outline_rounded,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _passwordController,
+                    focusNode: _passwordFocus,
+                    obscureText: _obscurePassword,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) {
+                      if (!_isLoading) _onLogin();
+                    },
+                    style: const TextStyle(fontSize: 15),
+                    decoration: InputDecoration(
+                      labelText: t.passwordLabel,
+                      prefixIcon: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          size: 20,
                         ),
-                      )
-                    : const Text('ĐĂNG NHẬP'),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _goToForgotPassword,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        t.forgotPasswordTitle,
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 44,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _onLogin,
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  t.loginTitle.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(Icons.arrow_forward_rounded, size: 18),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  _buildOrDivider(context),
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _onLoginWithGoogle,
+                      icon: Icon(
+                        Icons.g_mobiledata_rounded,
+                        size: 22,
+                        color: theme.colorScheme.primary,
+                      ),
+                      label: Text(t.signInWithGoogle, style: const TextStyle(fontSize: 14)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(
+                          color: theme.dividerColor.withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  if (!kIsWeb) ...[
+                    const SizedBox(height: 12),
+                    Center(child: _buildRegisterText(context)),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            _buildOrDivider(context),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : _onLoginWithGoogle,
-                icon: Icon(
-                  Icons.g_mobiledata,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
-                label: const Text('Đăng nhập với Google'),
-              ),
-            ),
-          ],
+          ),
+        ],
         ),
       ),
     );
   }
 
   Widget _buildOrDivider(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Row(
       children: [
@@ -367,7 +514,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(width: 8),
         Text(
-          'hoặc',
+          t.commonOr,
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(width: 8),
@@ -382,15 +529,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildRegisterText(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final baseStyle = theme.textTheme.bodySmall ?? AppTextStyles.caption;
     return RichText(
       text: TextSpan(
-        text: 'Chưa có tài khoản? ',
+        text: '${t.noAccountPrefix} ',
         style: baseStyle,
         children: [
           TextSpan(
-            text: 'Đăng ký',
+            text: t.registerAction,
             style: baseStyle.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.w600,

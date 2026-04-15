@@ -29,7 +29,7 @@ Lưu thông tin người dùng (sinh viên & admin).
 | `uid`          | string    | Firebase Auth UID             |
 | `fullName`     | string    | Họ tên                        |
 | `email`        | string    | Email đăng nhập               |
-| `role`         | string    | `"admin"` \| `"student"`      |
+| `role`         | string    | `"admin"` \| `"manager"` \| `"student"` |
 | `studentCode`  | string    | MSSV (nếu là sinh viên)       |
 | `phone`        | string    | Số điện thoại                 |
 | `avatarUrl`    | string    | URL ảnh đại diện (optional)   |
