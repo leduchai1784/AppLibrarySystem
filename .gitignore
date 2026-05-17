@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+ENV/
+
+# Local secrets (never commit)
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+
+# Env files
+.env
+.env.*
+
+# Testing
+.pytest_cache/
+reports/
