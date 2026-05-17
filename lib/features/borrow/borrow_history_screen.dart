@@ -8,8 +8,9 @@ import '../../core/utils/book_cover_from_firestore.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../gen/l10n/app_localizations.dart';
+import 'data/borrow_repository.dart';
 
-/// Màn hình lịch sử mượn sách (Admin/Sinh viên) - Firestore
+/// Màn hình lịch sử mượn sách (Admin/Sinh viên) — đọc qua [BorrowRepository], phân trang + kéo refresh.
 class BorrowHistoryScreen extends StatefulWidget {
   const BorrowHistoryScreen({super.key, this.embedInTab = false});
 
@@ -21,12 +22,107 @@ class BorrowHistoryScreen extends StatefulWidget {
 }
 
 class _BorrowHistoryScreenState extends State<BorrowHistoryScreen> {
+  final BorrowRepository _repo = BorrowRepository();
+  final ScrollController _scrollController = ScrollController();
+
   String _filterStatus = 'all';
+  final List<_BorrowItem> _items = [];
+  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+  bool _hasMore = true;
+  bool _loading = true;
+  bool _loadingMore = false;
+  Object? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _loadFirstPage();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  String? get _userIdEquals {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (AppUser.isStaff) return null;
+    return uid;
+  }
+
+  void _onScroll() {
+    if (!_hasMore || _loadingMore || _loading) return;
+    final pos = _scrollController.position;
+    if (!pos.hasViewportDimension) return;
+    if (pos.pixels >= pos.maxScrollExtent * 0.88) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadFirstPage() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+      _items.clear();
+      _cursor = null;
+      _hasMore = true;
+    });
+    try {
+      final page = await _repo.fetchHistoryPage(
+        userIdEquals: _userIdEquals,
+        statusFilter: _filterStatus,
+        pageSize: BorrowRepository.defaultPageSize,
+        startAfter: null,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(page.docs.map(_BorrowItem.fromDoc));
+        _cursor = page.lastDoc;
+        _hasMore = page.hasMore;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (!_hasMore || _loadingMore || _cursor == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await _repo.fetchHistoryPage(
+        userIdEquals: _userIdEquals,
+        statusFilter: _filterStatus,
+        pageSize: BorrowRepository.defaultPageSize,
+        startAfter: _cursor,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(page.docs.map(_BorrowItem.fromDoc));
+        _cursor = page.lastDoc;
+        _hasMore = page.hasMore;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+      final t = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.genericErrorWithMessage('$e'))));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
     final isStaff = AppUser.isStaff;
     final statusOptions = [
       _StatusOption('all', t.statusAll),
@@ -35,13 +131,6 @@ class _BorrowHistoryScreenState extends State<BorrowHistoryScreen> {
       _StatusOption('late', t.statusLate),
     ];
 
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('borrow_records');
-    if (!isStaff && uid != null) {
-      query = query.where('userId', isEqualTo: uid);
-    }
-    query = query.orderBy('borrowDate', descending: true).limit(100);
-
-    // Firestore không cho whereIn với orderBy linh hoạt ở mọi trường hợp, nên lọc status phía client cho đơn giản.
     final body = Column(
       children: [
         Padding(
@@ -57,157 +146,224 @@ class _BorrowHistoryScreenState extends State<BorrowHistoryScreen> {
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 labelPadding: const EdgeInsets.symmetric(horizontal: 10),
-                onSelected: (_) => setState(() => _filterStatus = s.id),
+                onSelected: (_) {
+                  if (_filterStatus == s.id) return;
+                  setState(() => _filterStatus = s.id);
+                  _loadFirstPage();
+                },
               );
             }).toList(),
           ),
         ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: query.snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text(t.cannotLoadBorrowHistory));
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-              var items = docs.map((d) => _BorrowItem.fromDoc(d)).toList();
-
-              if (_filterStatus != 'all') {
-                items = items.where((i) => i.status == _filterStatus).toList();
-              }
-
-              if (items.isEmpty) {
-                return Center(
-                  child: Text(
-                    isStaff ? t.noBorrowHistoryStaff : t.noBorrowHistoryStudent,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final r = items[index];
-                  final statusColor = switch (r.status) {
-                    'late' => AppColors.error,
-                    'returned' => AppColors.success,
-                    _ => AppColors.primary,
-                  };
-
-                  final statusLabel = r.statusLabel(t);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.28)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: statusColor.withValues(alpha: 0.42), width: 1.4),
-                              ),
-                              child: r.bookImageUrlSnapshot.trim().isNotEmpty
-                                  ? buildBookCoverDisplay(
-                                      imageRef: r.bookImageUrlSnapshot,
-                                      width: 44,
-                                      height: 58,
-                                      borderRadius: BorderRadius.circular(8),
-                                    )
-                                  : BookCoverFromBookId(
-                                      bookId: r.bookId,
-                                      width: 44,
-                                      height: 58,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: _HistoryBookTitle(
-                                          bookId: r.bookId,
-                                          snapshotTitle: r.bookTitleSnapshot,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      _StatusChip(label: statusLabel, isLate: r.status == 'late'),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    t.borrowedPrefix(r.borrowDateText, r.returnDateText),
-                                    style: AppTextStyles.small.copyWith(
-                                      fontSize: 11.8,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (r.fineAmount > 0) ...[
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.error.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        t.finePrefix('${r.fineAmount}'),
-                                        style: AppTextStyles.small.copyWith(color: AppColors.error, fontWeight: FontWeight.w700),
-                                      ),
-                                    ),
-                                  ],
-                                  if (isStaff) ...[
-                                    const SizedBox(height: 6),
-                                    DefaultTextStyle(
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: 11.5,
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.92),
-                                      ),
-                                      child: _HistoryUserLabel(userId: r.userId),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
+        Expanded(child: _buildListBody(context, t, isStaff)),
       ],
     );
 
     if (widget.embedInTab) return body;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t.borrowHistoryTitle2),
-      ),
+      appBar: AppBar(title: Text(t.borrowHistoryTitle2)),
       body: body,
+    );
+  }
+
+  Widget _buildListBody(
+    BuildContext context,
+    AppLocalizations t,
+    bool isStaff,
+  ) {
+    if (_loading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_loadError != null && _items.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(t.cannotLoadBorrowHistory, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _loadFirstPage,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(t.loadMore),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadFirstPage,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.35,
+              child: Center(
+                child: Text(
+                  isStaff ? t.noBorrowHistoryStaff : t.noBorrowHistoryStudent,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadFirstPage,
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        itemCount: _items.length + (_loadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= _items.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+          final r = _items[index];
+          final statusColor = switch (r.status) {
+            'late' => AppColors.error,
+            'returned' => AppColors.success,
+            _ => AppColors.primary,
+          };
+
+          final statusLabel = r.statusLabel(t);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.28),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.42),
+                          width: 1.4,
+                        ),
+                      ),
+                      child: r.bookImageUrlSnapshot.trim().isNotEmpty
+                          ? buildBookCoverDisplay(
+                              imageRef: r.bookImageUrlSnapshot,
+                              width: 44,
+                              height: 58,
+                              borderRadius: BorderRadius.circular(8),
+                            )
+                          : BookCoverFromBookId(
+                              bookId: r.bookId,
+                              width: 44,
+                              height: 58,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _HistoryBookTitle(
+                                  bookId: r.bookId,
+                                  snapshotTitle: r.bookTitleSnapshot,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _StatusChip(
+                                label: statusLabel,
+                                isLate: r.status == 'late',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            t.borrowedPrefix(
+                              r.borrowDateText,
+                              r.returnDateText,
+                            ),
+                            style: AppTextStyles.small.copyWith(
+                              fontSize: 11.8,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant
+                                  .withValues(alpha: 0.9),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (r.fineAmount > 0) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                t.finePrefix('${r.fineAmount}'),
+                                style: AppTextStyles.small.copyWith(
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (isStaff) ...[
+                            const SizedBox(height: 6),
+                            DefaultTextStyle(
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 11.5,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant
+                                    .withValues(alpha: 0.92),
+                              ),
+                              child: _HistoryUserLabel(userId: r.userId),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -277,8 +433,10 @@ class _BorrowItem {
     }
   }
 
-  String get borrowDateText => borrowDate == null ? '—' : _formatDate(borrowDate!);
-  String get returnDateText => returnDate == null ? '—' : _formatDate(returnDate!);
+  String get borrowDateText =>
+      borrowDate == null ? '—' : _formatDate(borrowDate!);
+  String get returnDateText =>
+      returnDate == null ? '—' : _formatDate(returnDate!);
 
   static _BorrowItem fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    hide ChangeNotifierProvider, Consumer;
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
@@ -14,31 +17,43 @@ import 'services/push_notification_service.dart';
 import 'gen/l10n/app_localizations.dart';
 
 void main() {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    setupGlobalErrorHandlers();
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    PushNotificationService.registerBackgroundHandler();
-    await PushNotificationService.initializeForegroundListeners();
-    final appSettings = await AppSettingsController.load();
-    runApp(
-      ChangeNotifierProvider<AppSettingsController>.value(
-        value: appSettings,
-        child: const LibrarySystemApp(),
-      ),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      PushNotificationService.attachAuthListener();
-    });
-  }, (error, stack) {
-    if (kDebugMode) {
-      debugPrint('═══ runZonedGuarded (lỗi không bắt được trong async) ═══');
-      debugPrint('$error');
-      debugPrint('$stack');
-    }
-  });
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      setupGlobalErrorHandlers();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+      PaintingBinding.instance.imageCache.maximumSize = 200;
+      PaintingBinding.instance.imageCache.maximumSizeBytes =
+          100 << 20; // 100 MB
+      PushNotificationService.registerBackgroundHandler();
+      await PushNotificationService.initializeForegroundListeners();
+      final appSettings = await AppSettingsController.load();
+      runApp(
+        ProviderScope(
+          child: ChangeNotifierProvider<AppSettingsController>.value(
+            value: appSettings,
+            child: const LibrarySystemApp(),
+          ),
+        ),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PushNotificationService.attachAuthListener();
+      });
+    },
+    (error, stack) {
+      if (kDebugMode) {
+        debugPrint('═══ runZonedGuarded (lỗi không bắt được trong async) ═══');
+        debugPrint('$error');
+        debugPrint('$stack');
+      }
+    },
+  );
 }
 
 class LibrarySystemApp extends StatelessWidget {

@@ -50,39 +50,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final confirmPassword = _confirmPasswordController.text;
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.pleaseEnterFullName)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.pleaseEnterFullName)));
       return;
     }
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.pleaseEnterEmail)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.pleaseEnterEmail)));
       return;
     }
     if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.pleaseEnterPhone)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.pleaseEnterPhone)));
       return;
     }
     if (password.isEmpty || password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.passwordMinLength)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.passwordMinLength)));
       return;
     }
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.passwordMismatch)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.passwordMismatch)));
       return;
     }
     if (!_agreeTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.agreeTermsRequired)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.agreeTermsRequired)));
       return;
     }
 
@@ -101,9 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            t.registerSuccessVerifyEmail,
-          ),
+          content: Text(t.registerSuccessVerifyEmail),
           backgroundColor: Colors.green,
         ),
       );
@@ -122,14 +120,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           message = t.weakPassword;
           break;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.errorPrefix('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.errorPrefix('$e'))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -147,13 +145,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
     final inputTheme = InputDecorationTheme(
       filled: true,
-      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.55,
+      ),
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
+        borderSide: BorderSide(
+          color: theme.dividerColor.withValues(alpha: 0.4),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -177,7 +179,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         title: Text(
           t.registerTitle,
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       body: SafeArea(
@@ -218,10 +222,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         color: theme.colorScheme.primary.withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(
-        Icons.person_add_alt_1_rounded,
-        size: 28,
-        color: theme.colorScheme.primary,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: Image.asset('logolibrarysystem.png', fit: BoxFit.cover),
+        ),
       ),
     );
   }
@@ -361,7 +367,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(width: 8),
                         Text(
                           t.passwordStrength,
-                          style: theme.textTheme.labelSmall?.copyWith(fontSize: 11),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -387,7 +395,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           onPressed: () {
                             setState(() {
-                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword;
                             });
                           },
                         ),
@@ -398,7 +407,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Checkbox(
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                           visualDensity: VisualDensity.compact,
                           value: _agreeTerms,
                           onChanged: (value) {
@@ -413,29 +423,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             softWrap: true,
                             text: TextSpan(
                               text: '${t.iAgreeWith} ',
-                              style: theme.textTheme.bodySmall?.copyWith(fontSize: 13, height: 1.35),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 13,
+                                height: 1.35,
+                              ),
                               children: [
                                 TextSpan(
                                   text: t.termsOfUse,
-                                  style: (theme.textTheme.bodySmall ?? AppTextStyles.caption).copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                  recognizer: TapGestureRecognizer()..onTap = () {},
+                                  style:
+                                      (theme.textTheme.bodySmall ??
+                                              AppTextStyles.caption)
+                                          .copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {},
                                 ),
                                 TextSpan(
                                   text: ' ${t.andWord} ',
-                                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 13, height: 1.35),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontSize: 13,
+                                    height: 1.35,
+                                  ),
                                 ),
                                 TextSpan(
                                   text: t.privacyPolicy,
-                                  style: (theme.textTheme.bodySmall ?? AppTextStyles.caption).copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                  recognizer: TapGestureRecognizer()..onTap = () {},
+                                  style:
+                                      (theme.textTheme.bodySmall ??
+                                              AppTextStyles.caption)
+                                          .copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                          ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = () {},
                                 ),
                               ],
                             ),
@@ -463,7 +487,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : Row(
@@ -478,7 +504,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 18,
+                                  ),
                                 ],
                               ),
                       ),
@@ -517,4 +546,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-

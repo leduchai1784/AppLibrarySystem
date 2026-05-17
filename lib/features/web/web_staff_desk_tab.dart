@@ -30,9 +30,9 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
     final t = AppLocalizations.of(context)!;
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.enterBookIdOrIsbn)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.enterBookIdOrIsbn)));
       return;
     }
 
@@ -52,7 +52,10 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
         return;
       }
 
-      final byIsbn = await booksRef.where('isbn', isEqualTo: code).limit(1).get();
+      final byIsbn = await booksRef
+          .where('isbn', isEqualTo: code)
+          .limit(1)
+          .get();
       if (byIsbn.docs.isNotEmpty) {
         final doc = byIsbn.docs.first;
         if (mounted) {
@@ -62,15 +65,15 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.bookNotFoundShort)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.bookNotFoundShort)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.lookupError('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.lookupError('$e'))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -78,14 +81,14 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
   }
 
   Map<String, dynamic> _bookToDetailMap(_DeskBook b) => {
-        'id': b.id,
-        'title': b.title,
-        'author': b.author,
-        'category': b.category,
-        'isbn': b.isbn,
-        'quantity': b.quantity,
-        'available': b.available,
-      };
+    'id': b.id,
+    'title': b.title,
+    'author': b.author,
+    'category': b.category,
+    'isbn': b.isbn,
+    'quantity': b.quantity,
+    'available': b.available,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +103,9 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
           children: [
             Text(
               t.deskTitle,
-              style: AppTextStyles.h1.copyWith(color: theme.colorScheme.onSurface),
+              style: AppTextStyles.h1.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -114,7 +119,9 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.35)),
+                side: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.35),
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -150,7 +157,10 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
                         FilledButton(
                           onPressed: _loading ? null : _lookup,
                           style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 28,
+                              vertical: 18,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -159,7 +169,9 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
                               ? const SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : Text(t.findAction),
                         ),
@@ -217,13 +229,15 @@ class _WebStaffDeskTabState extends State<WebStaffDeskTab> {
                       icon: Icons.bookmark_outline,
                       label: t.quickCurrentBorrows,
                       subtitle: t.quickCurrentBorrowsSubtitle,
-                      onTap: () => AppRoutes.pushRoot(context, AppRoutes.currentBorrows),
+                      onTap: () =>
+                          AppRoutes.pushRoot(context, AppRoutes.currentBorrows),
                     ),
                     _DeskActionCard(
                       icon: Icons.history,
                       label: t.quickHistory,
                       subtitle: t.quickHistorySubtitle,
-                      onTap: () => AppRoutes.pushRoot(context, AppRoutes.borrowHistory),
+                      onTap: () =>
+                          AppRoutes.pushRoot(context, AppRoutes.borrowHistory),
                     ),
                   ],
                 );
@@ -257,12 +271,15 @@ class _DeskBook {
 
   factory _DeskBook.fromDoc(String id, Map<String, dynamic> data) {
     final quantity = (data['quantity'] ?? 0) as int;
-    final available = (data['availableQuantity'] ?? data['available'] ?? quantity) as int;
+    final available =
+        (data['availableQuantity'] ?? data['available'] ?? quantity) as int;
     return _DeskBook(
       id: id,
       title: (data['title'] ?? '') as String,
       author: (data['author'] ?? '') as String,
-      category: (data['category'] ?? data['categoryId'] ?? kDefaultBookCategory) as String,
+      category:
+          (data['category'] ?? data['categoryId'] ?? kDefaultBookCategory)
+              as String,
       isbn: (data['isbn'] ?? '') as String,
       quantity: quantity,
       available: available,
@@ -292,12 +309,17 @@ class _BookResultCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.primaryContainer.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(book.title.isEmpty ? t.webDeskUntitledBook : book.title, style: AppTextStyles.h3),
+          Text(
+            book.title.isEmpty ? t.webDeskUntitledBook : book.title,
+            style: AppTextStyles.h3,
+          ),
           const SizedBox(height: 6),
           Text(t.bookIdDebugLabel(book.id), style: theme.textTheme.bodySmall),
           const SizedBox(height: 8),
@@ -307,7 +329,10 @@ class _BookResultCard extends StatelessWidget {
               '${book.quantity}',
               book.isbn.isEmpty ? '—' : book.isbn,
             ),
-            style: AppTextStyles.body.copyWith(color: stockColor, fontWeight: FontWeight.w600),
+            style: AppTextStyles.body.copyWith(
+              color: stockColor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 16),
           Wrap(

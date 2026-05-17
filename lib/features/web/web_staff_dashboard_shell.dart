@@ -105,7 +105,11 @@ class _WebStaffDashboardShellState extends State<WebStaffDashboardShell> {
               CircleAvatar(
                 radius: 16,
                 backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                child: Icon(Icons.person, size: 18, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                child: Icon(
+                  Icons.person,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
               ),
               const SizedBox(width: 8),
               ConstrainedBox(
@@ -161,7 +165,15 @@ class _WebStaffDashboardShellState extends State<WebStaffDashboardShell> {
                       color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.local_library, color: Color(0xFF38BDF8), size: 26),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'logolibrarysystem.png',
+                        width: 26,
+                        height: 26,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -197,7 +209,9 @@ class _WebStaffDashboardShellState extends State<WebStaffDashboardShell> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Material(
-                      color: sel ? const Color(0xFF1D4ED8).withValues(alpha: 0.45) : Colors.transparent,
+                      color: sel
+                          ? const Color(0xFF1D4ED8).withValues(alpha: 0.45)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                       child: ListTile(
                         leading: Icon(
@@ -214,7 +228,9 @@ class _WebStaffDashboardShellState extends State<WebStaffDashboardShell> {
                         ),
                         selected: sel,
                         onTap: () => onSelect(i),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         hoverColor: Colors.white.withValues(alpha: 0.06),
                       ),
                     ),
@@ -225,7 +241,10 @@ class _WebStaffDashboardShellState extends State<WebStaffDashboardShell> {
             const Divider(height: 1, color: Color(0x33FFFFFF)),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.white54),
-              title: Text(t.webMenuSignOut, style: const TextStyle(color: Colors.white70)),
+              title: Text(
+                t.webMenuSignOut,
+                style: const TextStyle(color: Colors.white70),
+              ),
               onTap: () async {
                 await AuthService.signOut();
                 if (mounted) {
@@ -332,10 +351,7 @@ class _WebTopBar extends StatelessWidget {
   final String title;
   final List<Widget> actions;
 
-  const _WebTopBar({
-    required this.title,
-    required this.actions,
-  });
+  const _WebTopBar({required this.title, required this.actions});
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +364,9 @@ class _WebTopBar extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           border: Border(
-            bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.45)),
+            bottom: BorderSide(
+              color: theme.dividerColor.withValues(alpha: 0.45),
+            ),
           ),
           boxShadow: [
             BoxShadow(

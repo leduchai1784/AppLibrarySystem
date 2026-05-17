@@ -25,6 +25,7 @@ class BookExcelSampleTemplate {
       t.excelSampleColIsbn,
       t.excelSampleColQuantity,
       t.excelSampleColDescription,
+      t.excelSampleColImageUrl,
     ];
 
     final rows = <List<Object>>[
@@ -37,6 +38,7 @@ class BookExcelSampleTemplate {
         '9786040011123',
         5,
         'Giáo trình cơ bản về Dart và ứng dụng Flutter.',
+        '',
       ],
       [
         'Kinh tế vi mô',
@@ -47,6 +49,7 @@ class BookExcelSampleTemplate {
         '9786040022234',
         3,
         'Các khái niệm cung — cầu, thị trường cạnh tranh.',
+        '',
       ],
       [
         'Những người khốn khổ',
@@ -57,6 +60,7 @@ class BookExcelSampleTemplate {
         '9786040033345',
         8,
         'Tác phẩm kinh điển văn học Pháp (bản dịch).',
+        '',
       ],
       [
         'Lịch sử Việt Nam hiện đại',
@@ -67,6 +71,7 @@ class BookExcelSampleTemplate {
         '9786040044456',
         4,
         'Từ thế kỷ XIX đến đầu thế kỷ XX.',
+        '',
       ],
       [
         'Sức khỏe sinh viên',
@@ -77,20 +82,25 @@ class BookExcelSampleTemplate {
         '9786040055567',
         6,
         'Dinh dưỡng, vận động và phòng bệnh thường gặp.',
+        '',
       ],
     ];
 
     for (var c = 0; c < headers.length; c++) {
       sheet
           .cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: 0))
-          .value = TextCellValue(headers[c]);
+          .value = TextCellValue(
+        headers[c],
+      );
     }
 
     for (var r = 0; r < rows.length; r++) {
       final data = rows[r];
       for (var c = 0; c < data.length; c++) {
         final v = data[c];
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r + 1));
+        final cell = sheet.cell(
+          CellIndex.indexByColumnRow(columnIndex: c, rowIndex: r + 1),
+        );
         if (v is int) {
           cell.value = IntCellValue(v);
         } else {

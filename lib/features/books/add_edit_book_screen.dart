@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -15,6 +15,7 @@ import '../../gen/l10n/app_localizations.dart';
 import '../../services/book_excel_import_service.dart';
 import '../../services/book_excel_sample_template.dart';
 import '../../services/category_ensure_service.dart';
+import '../../services/cloudinary_service.dart';
 
 /// Màn hình thêm / cập nhật sách (Admin) - giao diện hoàn chỉnh
 class AddEditBookScreen extends StatefulWidget {
@@ -28,7 +29,6 @@ class AddEditBookScreen extends StatefulWidget {
 
 class _AddEditBookScreenState extends State<AddEditBookScreen> {
   static const int _kMaxCoverRawBytes = 330000;
-  static const int _kMaxDataUrlChars = 900000;
 
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -48,7 +48,8 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
   String? _lastSyncedAuthorName;
   static const String _kManualAuthor = '__manual__';
 
-  List<(String value, String label)> _demoCategoryChoices(AppLocalizations t) => [
+  List<(String value, String label)> _demoCategoryChoices(AppLocalizations t) =>
+      [
         ('Công nghệ', t.demoCategoryTech),
         ('Kinh tế', t.demoCategoryEcon),
         ('Văn học', t.demoCategoryLit),
@@ -65,6 +66,7 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
   List<Map<String, dynamic>>? _excelParsedBooks;
   final List<String> _excelParseMessages = [];
   bool _excelWorking = false;
+  bool _coverUploading = false;
 
   @override
   void initState() {
@@ -100,47 +102,62 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
     return (_coverDataUrl ?? '').trim();
   }
 
-  String _mimeFromFileName(String name) {
-    final p = name.toLowerCase();
-    if (p.endsWith('.png')) return 'image/png';
-    if (p.endsWith('.webp')) return 'image/webp';
-    if (p.endsWith('.gif')) return 'image/gif';
-    return 'image/jpeg';
-  }
-
   Future<void> _pickCoverImage() async {
     final t = AppLocalizations.of(context)!;
-    final x = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 720,
-      maxHeight: 1080,
-      imageQuality: 68,
-    );
+    XFile? x;
+    if (kIsWeb) {
+      final pick = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+      if (pick == null || pick.files.isEmpty) return;
+      final f = pick.files.single;
+      final bytes = f.bytes;
+      if (bytes == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(t.cannotReadFileContent)));
+        }
+        return;
+      }
+      x = XFile.fromData(bytes, name: f.name);
+    } else {
+      x = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 720,
+        maxHeight: 1080,
+        imageQuality: 68,
+      );
+    }
     if (!mounted || x == null) return;
     try {
       final bytes = await x.readAsBytes();
       if (bytes.length > _kMaxCoverRawBytes) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.bookCoverImageTooLarge)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(t.bookCoverImageTooLarge)));
         }
         return;
       }
-      final mime = (x.mimeType != null && x.mimeType!.startsWith('image/')) ? x.mimeType! : _mimeFromFileName(x.name);
-      final b64 = base64Encode(bytes);
-      final dataUrl = 'data:$mime;base64,$b64';
-      if (dataUrl.length > _kMaxDataUrlChars) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.bookCoverDataUrlTooLong)));
-        }
-        return;
-      }
+      setState(() => _coverUploading = true);
+      final url = await CloudinaryService.uploadBookCoverBytes(
+        bytes: bytes,
+        filename: x.name,
+      );
+      if (!mounted) return;
       setState(() {
-        _coverDataUrl = dataUrl;
-        _imageUrlTextController.clear();
+        _coverUploading = false;
+        _coverDataUrl = null; // không lưu base64 nữa
+        _imageUrlTextController.text = url;
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.saveBookError('$e'))));
+        setState(() => _coverUploading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.saveBookError('$e'))));
       }
     }
   }
@@ -168,8 +185,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
         _linkedAuthorId = (aid != null && aid.isNotEmpty) ? aid : null;
         final gid = map['genreId']?.toString();
         _selectedGenreId = (gid != null && gid.isNotEmpty) ? gid : null;
-        _lastSyncedAuthorName =
-            _linkedAuthorId != null ? _authorController.text.trim() : null;
+        _lastSyncedAuthorName = _linkedAuthorId != null
+            ? _authorController.text.trim()
+            : null;
         _selectedCategory = map['category']?.toString() ?? _selectedCategory;
         _isbnController.text = map['isbn']?.toString() ?? '';
         _quantityController.text = map['quantity']?.toString() ?? '1';
@@ -189,16 +207,23 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
       _initializedFromArgs = true;
     }
 
-    if (widget.isEdit && _initializedFromArgs && !_coverHydrateScheduled && _docId != null) {
+    if (widget.isEdit &&
+        _initializedFromArgs &&
+        !_coverHydrateScheduled &&
+        _docId != null) {
       _coverHydrateScheduled = true;
       final hasLocalCover =
-          (_coverDataUrl ?? '').isNotEmpty || _imageUrlTextController.text.trim().isNotEmpty;
+          (_coverDataUrl ?? '').isNotEmpty ||
+          _imageUrlTextController.text.trim().isNotEmpty;
       if (!hasLocalCover) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           final id = _docId;
           if (!mounted || id == null || id.isEmpty) return;
           try {
-            final snap = await FirebaseFirestore.instance.collection('books').doc(id).get();
+            final snap = await FirebaseFirestore.instance
+                .collection('books')
+                .doc(id)
+                .get();
             if (!mounted || !snap.exists) return;
             final u = snap.data()?['imageUrl']?.toString() ?? '';
             if (u.isEmpty) return;
@@ -233,7 +258,10 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!widget.isEdit) ...[
-                _SectionTitle(title: t.excelImportTitle, icon: Icons.table_chart_outlined),
+                _SectionTitle(
+                  title: t.excelImportTitle,
+                  icon: Icons.table_chart_outlined,
+                ),
                 const SizedBox(height: 8),
                 Card(
                   child: Padding(
@@ -243,14 +271,21 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                       children: [
                         Text(
                           t.excelImportFormatHint,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.35),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodySmall?.copyWith(height: 1.35),
                         ),
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
-                            onPressed: _excelWorking ? null : _shareVietnameseExcelTemplate,
-                            icon: const Icon(Icons.table_view_outlined, size: 20),
+                            onPressed: _excelWorking
+                                ? null
+                                : _shareVietnameseExcelTemplate,
+                            icon: const Icon(
+                              Icons.table_view_outlined,
+                              size: 20,
+                            ),
                             label: Text(t.downloadExcelTemplate),
                           ),
                         ),
@@ -261,7 +296,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                           children: [
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: _excelWorking ? null : _pickExcelFile,
+                                onPressed: _excelWorking
+                                    ? null
+                                    : _pickExcelFile,
                                 icon: const Icon(Icons.upload_file_outlined),
                                 label: Text(t.pickXlsx),
                               ),
@@ -269,7 +306,8 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: FilledButton.icon(
-                                onPressed: (_excelWorking ||
+                                onPressed:
+                                    (_excelWorking ||
                                         _excelParsedBooks == null ||
                                         _excelParsedBooks!.isEmpty)
                                     ? null
@@ -278,7 +316,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                                 label: Text(
                                   _excelParsedBooks == null
                                       ? t.importInventory
-                                      : t.importNBooks(_excelParsedBooks!.length),
+                                      : t.importNBooks(
+                                          _excelParsedBooks!.length,
+                                        ),
                                 ),
                               ),
                             ),
@@ -295,18 +335,29 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                           const SizedBox(height: 10),
                           Text(
                             t.excelNotesErrors,
-                            style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           const SizedBox(height: 6),
-                          ..._excelParseMessages.take(12).map(
+                          ..._excelParseMessages
+                              .take(12)
+                              .map(
                                 (m) => Padding(
                                   padding: const EdgeInsets.only(bottom: 4),
-                                  child: Text('• $m', style: Theme.of(context).textTheme.bodySmall),
+                                  child: Text(
+                                    '• $m',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
                                 ),
                               ),
                           if (_excelParseMessages.length > 12)
                             Text(
-                              t.excelAndMoreLines(_excelParseMessages.length - 12),
+                              t.excelAndMoreLines(
+                                _excelParseMessages.length - 12,
+                              ),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                         ],
@@ -323,8 +374,8 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                       child: Text(
                         t.orEnterSingleBook,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: Theme.of(context).hintColor,
-                            ),
+                          color: Theme.of(context).hintColor,
+                        ),
                       ),
                     ),
                     const Expanded(child: Divider()),
@@ -333,7 +384,10 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                 const SizedBox(height: 20),
               ],
               // Thông tin cơ bản
-              _SectionTitle(title: t.bookBasicInfoSection, icon: Icons.info_outline),
+              _SectionTitle(
+                title: t.bookBasicInfoSection,
+                icon: Icons.info_outline,
+              ),
               const SizedBox(height: 12),
               _buildTextField(
                 label: t.bookTitleLabel,
@@ -346,23 +400,29 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
               _buildAuthorSection(context, t, theme),
               const SizedBox(height: 16),
               StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance.collection('categories').snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('categories')
+                    .snapshots(),
                 builder: (context, snap) {
-                  final names = snap.data?.docs
+                  final names =
+                      snap.data?.docs
                           .map((d) => d.data()['name'] as String?)
                           .whereType<String>()
                           .map((s) => s.trim())
                           .where((s) => s.isNotEmpty)
                           .toList() ??
                       [];
-                  names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+                  names.sort(
+                    (a, b) => a.toLowerCase().compareTo(b.toLowerCase()),
+                  );
                   final demo = _demoCategoryChoices(t);
                   final items = names.isEmpty
                       ? demo
                       : [for (final n in names) (n, n)];
                   final codes = items.map((e) => e.$1).toList();
-                  final value =
-                      codes.contains(_selectedCategory) ? _selectedCategory : codes.first;
+                  final value = codes.contains(_selectedCategory)
+                      ? _selectedCategory
+                      : codes.first;
                   if (value != _selectedCategory) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) setState(() => _selectedCategory = value);
@@ -372,23 +432,35 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                     label: t.bookCategoryLabel,
                     value: value,
                     items: items,
-                    onChanged: (v) => setState(() => _selectedCategory = v ?? value),
+                    onChanged: (v) =>
+                        setState(() => _selectedCategory = v ?? value),
                   );
                 },
               ),
               const SizedBox(height: 16),
               _buildGenreSection(t),
               const SizedBox(height: 16),
-              _SectionTitle(title: t.bookCoverSectionTitle, icon: Icons.image_outlined),
+              _SectionTitle(
+                title: t.bookCoverSectionTitle,
+                icon: Icons.image_outlined,
+              ),
               const SizedBox(height: 10),
+              if (_coverUploading) ...[
+                const LinearProgressIndicator(),
+                const SizedBox(height: 10),
+              ],
               Center(
                 child: Container(
                   width: 128,
                   height: 180,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.45,
+                    ),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: theme.dividerColor.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: theme.dividerColor.withValues(alpha: 0.4),
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   alignment: Alignment.center,
@@ -414,7 +486,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                   labelText: t.bookCoverUrlLabel,
                   hintText: t.bookCoverUrlHint,
                   prefixIcon: const Icon(Icons.link, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   isDense: true,
                 ),
               ),
@@ -431,7 +505,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: (_effectiveCoverForPreview().isEmpty) ? null : _clearCoverImage,
+                      onPressed: (_effectiveCoverForPreview().isEmpty)
+                          ? null
+                          : _clearCoverImage,
                       icon: const Icon(Icons.delete_outline, size: 20),
                       label: Text(t.bookCoverRemove),
                     ),
@@ -449,7 +525,10 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
 
               // Số lượng
               const SizedBox(height: 24),
-              _SectionTitle(title: t.bookInventorySection, icon: Icons.inventory_2_outlined),
+              _SectionTitle(
+                title: t.bookInventorySection,
+                icon: Icons.inventory_2_outlined,
+              ),
               const SizedBox(height: 12),
               _buildTextField(
                 label: t.bookQuantityLabel,
@@ -461,7 +540,10 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
               ),
 
               const SizedBox(height: 24),
-              _SectionTitle(title: t.bookDescriptionSectionTitle, icon: Icons.description_outlined),
+              _SectionTitle(
+                title: t.bookDescriptionSectionTitle,
+                icon: Icons.description_outlined,
+              ),
               const SizedBox(height: 12),
               _buildTextField(
                 label: t.bookDescriptionFieldLabel,
@@ -482,7 +564,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(widget.isEdit ? t.submitUpdateBook : t.submitAddBook),
+                    child: Text(
+                      widget.isEdit ? t.submitUpdateBook : t.submitAddBook,
+                    ),
                   ),
                 ),
               ),
@@ -555,15 +639,17 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.isEdit ? t.saveBookSuccessUpdate : t.saveBookSuccessAdd),
+          content: Text(
+            widget.isEdit ? t.saveBookSuccessUpdate : t.saveBookSuccessAdd,
+          ),
         ),
       );
       Navigator.pop(context);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.saveBookError('$e'))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.saveBookError('$e'))));
     }
   }
 
@@ -572,9 +658,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
     final bytes = BookExcelSampleTemplate.buildLocalizedSampleBytes(t);
     if (!mounted) return;
     if (bytes == null || bytes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.cannotCreateTemplate)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.cannotCreateTemplate)));
       return;
     }
     try {
@@ -584,7 +670,8 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
             XFile.fromData(
               Uint8List.fromList(bytes),
               name: t.excelTemplateFileName,
-              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              mimeType:
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ),
           ],
           fileNameOverrides: [t.excelTemplateFileName],
@@ -594,9 +681,9 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.shareFileError('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.shareFileError('$e'))));
       }
     }
   }
@@ -625,9 +712,7 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
       if (bytes == null) {
         setState(() {
           _excelWorking = false;
-          _excelParseMessages.add(
-            t.cannotReadFileContent,
-          );
+          _excelParseMessages.add(t.cannotReadFileContent);
         });
         return;
       }
@@ -653,24 +738,33 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
     }
   }
 
-  Widget _buildAuthorSection(BuildContext context, AppLocalizations t, ThemeData theme) {
+  Widget _buildAuthorSection(
+    BuildContext context,
+    AppLocalizations t,
+    ThemeData theme,
+  ) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('authors').snapshots(),
       builder: (context, snap) {
-        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(snap.data?.docs ?? []);
+        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+          snap.data?.docs ?? [],
+        );
         docs.sort(
           (a, b) => (a.data()['name'] ?? '').toString().toLowerCase().compareTo(
-                (b.data()['name'] ?? '').toString().toLowerCase(),
-              ),
+            (b.data()['name'] ?? '').toString().toLowerCase(),
+          ),
         );
-        final items = <(String, String)>[(_kManualAuthor, t.bookAuthorManualOption)];
+        final items = <(String, String)>[
+          (_kManualAuthor, t.bookAuthorManualOption),
+        ];
         for (final d in docs) {
           final name = (d.data()['name'] ?? '').toString().trim();
           if (name.isEmpty) continue;
           items.add((d.id, name));
         }
         var ddValue = _kManualAuthor;
-        if (_linkedAuthorId != null && items.any((e) => e.$1 == _linkedAuthorId)) {
+        if (_linkedAuthorId != null &&
+            items.any((e) => e.$1 == _linkedAuthorId)) {
           ddValue = _linkedAuthorId!;
         }
         return Column(
@@ -678,14 +772,24 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
           children: [
             Text(
               t.bookAuthorPickHint,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor, height: 1.35),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.hintColor,
+                height: 1.35,
+              ),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               initialValue: ddValue,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.library_books_outlined)),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.library_books_outlined),
+              ),
               items: items
-                  .map((e) => DropdownMenuItem<String>(value: e.$1, child: Text(e.$2)))
+                  .map(
+                    (e) => DropdownMenuItem<String>(
+                      value: e.$1,
+                      child: Text(e.$2),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) {
                 if (v == null) return;
@@ -729,11 +833,13 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('genres').snapshots(),
       builder: (context, snap) {
-        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(snap.data?.docs ?? []);
+        final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+          snap.data?.docs ?? [],
+        );
         docs.sort(
           (a, b) => (a.data()['name'] ?? '').toString().toLowerCase().compareTo(
-                (b.data()['name'] ?? '').toString().toLowerCase(),
-              ),
+            (b.data()['name'] ?? '').toString().toLowerCase(),
+          ),
         );
         final items = <(String, String)>[('', t.bookGenreNone)];
         for (final d in docs) {
@@ -756,11 +862,20 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
               initialValue: value,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.label_outline)),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.label_outline),
+              ),
               items: items
-                  .map((e) => DropdownMenuItem<String>(value: e.$1, child: Text(e.$2)))
+                  .map(
+                    (e) => DropdownMenuItem<String>(
+                      value: e.$1,
+                      child: Text(e.$2),
+                    ),
+                  )
                   .toList(),
-              onChanged: (v) => setState(() => _selectedGenreId = (v == null || v.isEmpty) ? null : v),
+              onChanged: (v) => setState(
+                () => _selectedGenreId = (v == null || v.isEmpty) ? null : v,
+              ),
             ),
           ],
         );
@@ -819,7 +934,8 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
         Row(
           children: [
             Text(label, style: AppTextStyles.caption),
-            if (required) const Text(' *', style: TextStyle(color: AppColors.error)),
+            if (required)
+              const Text(' *', style: TextStyle(color: AppColors.error)),
           ],
         ),
         const SizedBox(height: 6),
@@ -834,7 +950,11 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
             prefixIcon: Icon(prefixIcon, size: 20),
           ),
           onChanged: onChanged,
-          validator: required ? (v) => (v == null || v.isEmpty) ? t.fieldRequiredWithLabel(label) : null : null,
+          validator: required
+              ? (v) => (v == null || v.isEmpty)
+                    ? t.fieldRequiredWithLabel(label)
+                    : null
+              : null,
         ),
       ],
     );
@@ -853,9 +973,13 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: value,
-          decoration: const InputDecoration(prefixIcon: Icon(Icons.category_outlined)),
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.category_outlined),
+          ),
           items: items
-              .map((e) => DropdownMenuItem<String>(value: e.$1, child: Text(e.$2)))
+              .map(
+                (e) => DropdownMenuItem<String>(value: e.$1, child: Text(e.$2)),
+              )
               .toList(),
           onChanged: onChanged,
         ),
@@ -871,7 +995,10 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
         title: Text(t.confirmDeleteTitle),
         content: Text(t.confirmDeleteBookBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t.commonCancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.commonCancel),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
@@ -881,7 +1008,10 @@ class _AddEditBookScreenState extends State<AddEditBookScreen> {
                 return;
               }
               try {
-                await FirebaseFirestore.instance.collection('books').doc(_docId).delete();
+                await FirebaseFirestore.instance
+                    .collection('books')
+                    .doc(_docId)
+                    .delete();
                 if (context.mounted) {
                   AppRoutes.finishBookDeletionAndOpenBookList(
                     context,

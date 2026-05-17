@@ -27,13 +27,18 @@ class StationeryManageScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance.collection(_col).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text(t.stationeryLoadError('${snapshot.error}')));
+            return Center(
+              child: Text(t.stationeryLoadError('${snapshot.error}')),
+            );
           }
-          final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(snapshot.data?.docs ?? []);
+          final docs = List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+            snapshot.data?.docs ?? [],
+          );
           docs.sort((a, b) {
             final na = (a.data()['name'] ?? '').toString().toLowerCase();
             final nb = (b.data()['name'] ?? '').toString().toLowerCase();
@@ -62,14 +67,21 @@ class StationeryManageScreen extends StatelessWidget {
               final doc = docs[index];
               final m = doc.data();
               final name = (m['name'] ?? '') as String;
-              final qty = (m['quantity'] is int) ? m['quantity'] as int : int.tryParse('${m['quantity']}') ?? 0;
+              final qty = (m['quantity'] is int)
+                  ? m['quantity'] as int
+                  : int.tryParse('${m['quantity']}') ?? 0;
               final unit = (m['unit'] ?? '') as String;
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: const Icon(Icons.inventory_2_outlined),
-                  title: Text(name.isEmpty ? t.stationeryUntitled : name, style: AppTextStyles.h3),
-                  subtitle: Text(t.stationeryQtyLine('$qty', unit.isEmpty ? '—' : unit)),
+                  title: Text(
+                    name.isEmpty ? t.stationeryUntitled : name,
+                    style: AppTextStyles.h3,
+                  ),
+                  subtitle: Text(
+                    t.stationeryQtyLine('$qty', unit.isEmpty ? '—' : unit),
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -103,16 +115,22 @@ class StationeryManageScreen extends StatelessWidget {
     Map<String, dynamic>? existing,
   ) async {
     final t = AppLocalizations.of(context)!;
-    final nameC = TextEditingController(text: existing == null ? '' : '${existing['name'] ?? ''}');
+    final nameC = TextEditingController(
+      text: existing == null ? '' : '${existing['name'] ?? ''}',
+    );
     final qtyC = TextEditingController(
       text: existing == null ? '0' : '${existing['quantity'] ?? 0}',
     );
-    final unitC = TextEditingController(text: existing == null ? '' : '${existing['unit'] ?? ''}');
+    final unitC = TextEditingController(
+      text: existing == null ? '' : '${existing['unit'] ?? ''}',
+    );
     try {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(docId == null ? t.stationeryAddTitle : t.stationeryEditTitle),
+          title: Text(
+            docId == null ? t.stationeryAddTitle : t.stationeryEditTitle,
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -126,7 +144,9 @@ class StationeryManageScreen extends StatelessWidget {
                 TextField(
                   controller: qtyC,
                   keyboardType: TextInputType.number,
-                  decoration: InputDecoration(labelText: t.stationeryQuantityLabel),
+                  decoration: InputDecoration(
+                    labelText: t.stationeryQuantityLabel,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -137,15 +157,23 @@ class StationeryManageScreen extends StatelessWidget {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel)),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(t.commonSave)),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(t.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(t.commonSave),
+            ),
           ],
         ),
       );
       if (ok != true || !context.mounted) return;
       final n = nameC.text.trim();
       if (n.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stationeryNameRequired)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.stationeryNameRequired)));
         return;
       }
       final q = int.tryParse(qtyC.text.trim()) ?? 0;
@@ -160,7 +188,9 @@ class StationeryManageScreen extends StatelessWidget {
           'updatedAt': FieldValue.serverTimestamp(),
         });
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stationeryAdded)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(t.stationeryAdded)));
         }
       } else {
         await FirebaseFirestore.instance.collection(_col).doc(docId).update({
@@ -170,7 +200,9 @@ class StationeryManageScreen extends StatelessWidget {
           'updatedAt': FieldValue.serverTimestamp(),
         });
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stationeryUpdated)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(t.stationeryUpdated)));
         }
       }
     } finally {
@@ -180,7 +212,11 @@ class StationeryManageScreen extends StatelessWidget {
     }
   }
 
-  static Future<void> _confirmDelete(BuildContext context, String id, String name) async {
+  static Future<void> _confirmDelete(
+    BuildContext context,
+    String id,
+    String name,
+  ) async {
     final t = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
       context: context,
@@ -188,7 +224,10 @@ class StationeryManageScreen extends StatelessWidget {
         title: Text(t.stationeryDeleteTitle),
         content: Text(t.stationeryDeleteBody(name)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.commonCancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t.commonCancel),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
@@ -201,11 +240,15 @@ class StationeryManageScreen extends StatelessWidget {
     try {
       await FirebaseFirestore.instance.collection(_col).doc(id).delete();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stationeryDeleted)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.stationeryDeleted)));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.stationeryDeleteError('$e'))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.stationeryDeleteError('$e'))));
       }
     }
   }

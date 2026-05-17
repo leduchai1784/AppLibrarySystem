@@ -91,7 +91,7 @@ service cloud.firestore {
       // Chỉ cho phép tạo thông báo cho chính mình hoặc do nhân sự vận hành tạo.
       allow create: if isSignedIn()
         && (request.resource.data.userId == request.auth.uid || isStaff());
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
     }
 
     match /statistics/{docId} {
@@ -118,6 +118,12 @@ service cloud.firestore {
     match /genres/{genreId} {
       allow read: if isSignedIn();
       allow write: if isStaff();
+    }
+
+    match /payments/{paymentId} {
+      allow create: if isStaff();
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow update: if isStaff();
     }
 
     match /stationery/{itemId} {

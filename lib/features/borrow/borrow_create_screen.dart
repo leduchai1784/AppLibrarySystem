@@ -10,6 +10,7 @@ import '../../core/l10n/book_category_display.dart';
 import '../../core/utils/book_cover_display.dart';
 import '../../core/utils/library_qr_payload.dart';
 import '../../services/library_config_service.dart';
+import 'data/borrow_repository.dart';
 import '../shared/qr_scanner_screen.dart';
 import '../../gen/l10n/app_localizations.dart';
 
@@ -45,17 +46,25 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
   void initState() {
     super.initState();
     final n = DateTime.now();
-    _dueDate = DateTime(n.year, n.month, n.day).add(Duration(days: BorrowPolicy.defaultLoanDays));
+    _dueDate = DateTime(
+      n.year,
+      n.month,
+      n.day,
+    ).add(Duration(days: BorrowPolicy.defaultLoanDays));
     _loadLoanDays();
   }
 
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  DateTime _dueAtEndOfDay(DateTime d) => DateTime(d.year, d.month, d.day, 23, 59, 59);
+  DateTime _dueAtEndOfDay(DateTime d) =>
+      DateTime(d.year, d.month, d.day, 23, 59, 59);
 
   Future<void> _loadLoanDays() async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('library_settings').doc('config').get();
+      final doc = await FirebaseFirestore.instance
+          .collection('library_settings')
+          .doc('config')
+          .get();
       final data = doc.data();
       final loanDays = data?['loanDays'];
       if (loanDays is int && loanDays > 0 && mounted) {
@@ -111,7 +120,11 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
   }
 
   /// Khôi phục ô mã sách + preview nếu bị ghi đè bởi mã SV (sau khi quét / tra SV).
-  void _repairBookFieldAfterUserFlow(String bookBefore, _BookPreview? previewBefore, String rawScanned) {
+  void _repairBookFieldAfterUserFlow(
+    String bookBefore,
+    _BookPreview? previewBefore,
+    String rawScanned,
+  ) {
     if (!mounted) return;
     final before = bookBefore.trim();
     if (before.isEmpty) return;
@@ -121,7 +134,8 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     final uq = _userQueryController.text.trim();
     final r = rawScanned.trim();
 
-    final looksLikeScanLeak = cur == uq ||
+    final looksLikeScanLeak =
+        cur == uq ||
         (r.isNotEmpty && cur == r) ||
         cur.startsWith(LibraryQrPayload.userPrefix) ||
         cur.startsWith(LibraryQrPayload.returnPrefix);
@@ -129,7 +143,8 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     if (!looksLikeScanLeak) return;
 
     _bookCodeController.text = bookBefore;
-    if (previewBefore != null && (_book == null || _book!.id != previewBefore.id)) {
+    if (previewBefore != null &&
+        (_book == null || _book!.id != previewBefore.id)) {
       setState(() => _book = previewBefore);
     }
   }
@@ -171,16 +186,16 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     final p = LibraryQrParseResult.parse(raw);
     if (p.borrowRecordId != null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.borrowScannedReturnTicketHelp)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.borrowScannedReturnTicketHelp)));
       return;
     }
     if (p.userId != null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.borrowScannedStudentCodeHelp)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.borrowScannedStudentCodeHelp)));
       return;
     }
     final key = p.bookLookupKey.trim();
@@ -234,7 +249,8 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     if (userIdArg != null && userIdArg.isNotEmpty) {
       _userQueryController.text = userIdArg;
     }
-    if ((bookId != null && bookId.isNotEmpty) || (userIdArg != null && userIdArg.isNotEmpty)) {
+    if ((bookId != null && bookId.isNotEmpty) ||
+        (userIdArg != null && userIdArg.isNotEmpty)) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         if (bookId != null && bookId.isNotEmpty) await _lookupBook();
@@ -244,16 +260,91 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     }
   }
 
-  InputDecoration _inputDec(ThemeData theme, {required String hint, IconData? prefix}) {
+  InputDecoration _inputDec(
+    ThemeData theme, {
+    required String hint,
+    IconData? prefix,
+  }) {
+    final borderColor = theme.dividerColor.withValues(alpha: 0.42);
     return InputDecoration(
       hintText: hint,
-      prefixIcon: prefix != null ? Icon(prefix, size: 20) : null,
+      prefixIcon: prefix != null
+          ? Icon(
+              prefix,
+              size: 22,
+              color: theme.colorScheme.primary.withValues(alpha: 0.85),
+            )
+          : null,
       filled: true,
-      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      fillColor: theme.colorScheme.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.6),
+      ),
+    );
+  }
+
+  Widget _flowHintBanner(ThemeData theme, AppLocalizations t) {
+    final c = theme.colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline_rounded, color: c.primary, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                t.borrowCreateFlowHint,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: c.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  TextStyle _sectionTitleStyle(ThemeData theme) => theme.textTheme.titleMedium!
+      .copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.2);
+
+  Widget _sectionShell(ThemeData theme, {required List<Widget> children}) {
+    final c = theme.colorScheme;
+    final borderColor = theme.dividerColor.withValues(alpha: 0.38);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.surfaceContainerHighest.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
       ),
     );
   }
@@ -265,191 +356,320 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
 
     final now = DateTime.now();
 
+    final btnShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+    );
+    final outlineBtnStyle = OutlinedButton.styleFrom(
+      minimumSize: const Size(0, 48),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      shape: btnShape,
+    );
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         title: Text(t.borrowCreateTitle),
+        scrolledUnderElevation: 0,
       ),
-      // LayoutBuilder: chiều ngang từ constraint Scaffold (ổn định sau pop từ QrScanner). Không dùng Row+Expanded — tránh infinite width / sliver child.hasSize.
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final raw = constraints.maxWidth;
-          final mqW = MediaQuery.sizeOf(context).width;
-          final safeW = (raw.isFinite && raw > 0) ? raw : ((mqW.isFinite && mqW > 0) ? mqW : 360.0);
-          final contentW = (safeW - 32).clamp(120.0, 10000.0);
-          final qrHalf = ((contentW - 10) / 2).clamp(48.0, 5000.0);
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_busyBook || _busyUser || _busySubmit)
+            LinearProgressIndicator(
+              minHeight: 2,
+              color: theme.colorScheme.primary,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            ),
+          Expanded(
+            // LayoutBuilder: chiều ngang từ constraint Scaffold (ổn định sau pop từ QrScanner). Không dùng Row+Expanded — tránh infinite width / sliver child.hasSize.
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final raw = constraints.maxWidth;
+                final mqW = MediaQuery.sizeOf(context).width;
+                final safeW = (raw.isFinite && raw > 0)
+                    ? raw
+                    : ((mqW.isFinite && mqW > 0) ? mqW : 360.0);
+                final contentW = (safeW - 40).clamp(120.0, 10000.0);
+                final qrHalf = ((contentW - 10) / 2).clamp(48.0, 5000.0);
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (AppUser.isStaff)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Text(
-                    AppUser.isAdmin ? t.borrowSignedInAsAdmin : t.borrowSignedInAsManager,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              Text(
-                t.borrowCreateFlowHint,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _BorrowFlowSteps(
-                bookOk: _book != null,
-                userOk: _user != null,
-              ),
-              if (!kIsWeb) ...[
-                const SizedBox(height: 14),
-                Row(
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
                   children: [
-                    SizedBox(
-                      width: qrHalf,
-                      child: OutlinedButton.icon(
-                        onPressed: (_busyBook || _busySubmit) ? null : _scanBookQr,
-                        icon: const Icon(Icons.qr_code_scanner, size: 20),
-                        label: Text(t.scanBookQrButton),
+                    if (AppUser.isStaff)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer
+                                .withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            child: Text(
+                              AppUser.isAdmin
+                                  ? t.borrowSignedInAsAdmin
+                                  : t.borrowSignedInAsManager,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
+                    _flowHintBanner(theme, t),
+                    const SizedBox(height: 14),
+                    _BorrowFlowSteps(
+                      bookOk: _book != null,
+                      userOk: _user != null,
                     ),
-                    const SizedBox(width: 10),
+                    if (!kIsWeb) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: qrHalf,
+                            child: OutlinedButton.icon(
+                              style: outlineBtnStyle,
+                              onPressed: (_busyBook || _busySubmit)
+                                  ? null
+                                  : _scanBookQr,
+                              icon: const Icon(Icons.qr_code_scanner, size: 20),
+                              label: Text(
+                                t.scanBookQrButton,
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: qrHalf,
+                            child: OutlinedButton.icon(
+                              style: outlineBtnStyle,
+                              onPressed: (_busyUser || _busySubmit)
+                                  ? null
+                                  : _scanUserQr,
+                              icon: const Icon(Icons.badge_outlined, size: 20),
+                              label: Text(
+                                t.scanStudentQrButton,
+                                maxLines: 2,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    _sectionShell(
+                      theme,
+                      children: [
+                        Text(
+                          t.bookCodeInputTitle,
+                          style: _sectionTitleStyle(theme),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          key: const Key('borrow_book_code_input'),
+                          controller: _bookCodeController,
+                          decoration:
+                              _inputDec(
+                                theme,
+                                hint: t.bookCodeHint,
+                                prefix: Icons.tag,
+                              ).copyWith(
+                                suffixIcon: kIsWeb
+                                    ? null
+                                    : IconButton(
+                                        tooltip: t.scanBookQrButton,
+                                        icon: const Icon(Icons.qr_code_scanner),
+                                        onPressed: (_busyBook || _busySubmit)
+                                            ? null
+                                            : () async {
+                                                _unfocusBeforeQrScan();
+                                                final value =
+                                                    await Navigator.push<
+                                                      String?
+                                                    >(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            QrScannerScreen(
+                                                              title: t
+                                                                  .scanBookTitle,
+                                                              hint: t
+                                                                  .scanBookHint,
+                                                            ),
+                                                      ),
+                                                    );
+                                                if (value == null ||
+                                                    value.trim().isEmpty)
+                                                  return;
+                                                await _applyScannedBookPayload(
+                                                  value.trim(),
+                                                );
+                                              },
+                                      ),
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 48,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(shape: btnShape),
+                            onPressed: (_busyBook || _busySubmit)
+                                ? null
+                                : _lookupBook,
+                            child: Text(t.findAction),
+                          ),
+                        ),
+                        if (_book != null) ...[
+                          const SizedBox(height: 14),
+                          _BookCard(book: _book!),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _sectionShell(
+                      theme,
+                      children: [
+                        Text(
+                          t.studentBorrowerTitle,
+                          style: _sectionTitleStyle(theme),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          key: const Key('borrow_user_input'),
+                          controller: _userQueryController,
+                          decoration:
+                              _inputDec(
+                                theme,
+                                hint: t.studentBorrowerHint,
+                                prefix: Icons.person_outline,
+                              ).copyWith(
+                                suffixIcon: kIsWeb
+                                    ? null
+                                    : IconButton(
+                                        tooltip: t.borrowScanStudentTooltip,
+                                        icon: const Icon(Icons.qr_code_scanner),
+                                        onPressed: (_busyUser || _busySubmit)
+                                            ? null
+                                            : () async {
+                                                _unfocusBeforeQrScan();
+                                                final tt = AppLocalizations.of(
+                                                  context,
+                                                )!;
+                                                final value = await Navigator.push<String?>(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => QrScannerScreen(
+                                                      title: tt
+                                                          .borrowScanStudentTitle,
+                                                      hint: tt
+                                                          .borrowScanStudentInlineHint,
+                                                    ),
+                                                  ),
+                                                );
+                                                if (value == null ||
+                                                    value.trim().isEmpty)
+                                                  return;
+                                                await _applyScannedUserPayload(
+                                                  value.trim(),
+                                                );
+                                              },
+                                      ),
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 48,
+                          child: FilledButton(
+                            style: FilledButton.styleFrom(shape: btnShape),
+                            onPressed: (_busyUser || _busySubmit)
+                                ? null
+                                : _lookupUser,
+                            child: Text(t.findAction),
+                          ),
+                        ),
+                        if (_user != null) ...[
+                          const SizedBox(height: 14),
+                          _UserCard(user: _user!),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _sectionShell(
+                      theme,
+                      children: [
+                        Text(
+                          t.borrowDateLabel,
+                          style: _sectionTitleStyle(theme),
+                        ),
+                        const SizedBox(height: 10),
+                        _ReadonlyField(value: _formatDate(now)),
+                        const SizedBox(height: 18),
+                        Text(
+                          t.borrowDueDateTitle,
+                          style: _sectionTitleStyle(theme),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          t.borrowDueDateHint,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _DueDatePickerTile(
+                          valueText: _formatDate(_dueDate),
+                          enabled: !_busySubmit,
+                          onTap: _pickDueDate,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
                     SizedBox(
-                      width: qrHalf,
-                      child: OutlinedButton.icon(
-                        onPressed: (_busyUser || _busySubmit) ? null : _scanUserQr,
-                        icon: const Icon(Icons.badge_outlined, size: 20),
-                        label: Text(t.scanStudentQrButton),
+                      height: 52,
+                      width: contentW,
+                      child: FilledButton(
+                        key: const Key('create_borrow_submit'),
+                        style: FilledButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed:
+                            (_busySubmit ||
+                                _busyBook ||
+                                _busyUser ||
+                                _book == null ||
+                                _user == null)
+                            ? null
+                            : _createBorrowRecord,
+                        child: _busySubmit
+                            ? SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: theme.colorScheme.onPrimary,
+                                ),
+                              )
+                            : Text(t.createBorrowButton),
                       ),
                     ),
                   ],
-                ),
-              ],
-              const SizedBox(height: 20),
-              Text(t.bookCodeInputTitle, style: theme.textTheme.titleLarge),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _bookCodeController,
-                decoration: _inputDec(theme, hint: t.bookCodeHint, prefix: Icons.tag).copyWith(
-                  suffixIcon: kIsWeb
-                      ? null
-                      : IconButton(
-                          tooltip: t.scanBookQrButton,
-                          icon: const Icon(Icons.qr_code_scanner),
-                          onPressed: (_busyBook || _busySubmit)
-                              ? null
-                              : () async {
-                                  _unfocusBeforeQrScan();
-                                  final value = await Navigator.push<String?>(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => QrScannerScreen(
-                                        title: t.scanBookTitle,
-                                        hint: t.scanBookHint,
-                                      ),
-                                    ),
-                                  );
-                                  if (value == null || value.trim().isEmpty) return;
-                                  await _applyScannedBookPayload(value.trim());
-                                },
-                        ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: (_busyBook || _busySubmit) ? null : _lookupBook,
-                  child: Text(t.findAction),
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_book != null) SizedBox(width: contentW, child: _BookCard(book: _book!)),
-              const SizedBox(height: 24),
-              Text(t.studentBorrowerTitle, style: theme.textTheme.titleLarge),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _userQueryController,
-                decoration: _inputDec(theme, hint: t.studentBorrowerHint, prefix: Icons.person_outline).copyWith(
-                  suffixIcon: kIsWeb
-                      ? null
-                      : IconButton(
-                          tooltip: t.borrowScanStudentTooltip,
-                          icon: const Icon(Icons.qr_code_scanner),
-                          onPressed: (_busyUser || _busySubmit)
-                              ? null
-                              : () async {
-                                  _unfocusBeforeQrScan();
-                                  final tt = AppLocalizations.of(context)!;
-                                  final value = await Navigator.push<String?>(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => QrScannerScreen(
-                                        title: tt.borrowScanStudentTitle,
-                                        hint: tt.borrowScanStudentInlineHint,
-                                      ),
-                                    ),
-                                  );
-                                  if (value == null || value.trim().isEmpty) return;
-                                  await _applyScannedUserPayload(value.trim());
-                                },
-                        ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: (_busyUser || _busySubmit) ? null : _lookupUser,
-                  child: Text(t.findAction),
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_user != null) SizedBox(width: contentW, child: _UserCard(user: _user!)),
-              const SizedBox(height: 24),
-              Text(t.borrowDateLabel, style: theme.textTheme.bodySmall),
-              const SizedBox(height: 6),
-              _ReadonlyField(value: _formatDate(now), width: contentW),
-              const SizedBox(height: 12),
-              Text(t.borrowDueDateTitle, style: theme.textTheme.bodySmall),
-              const SizedBox(height: 4),
-              Text(
-                t.borrowDueDateHint,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 6),
-              _DueDatePickerTile(
-                width: contentW,
-                valueText: _formatDate(_dueDate),
-                enabled: !_busySubmit,
-                onTap: _pickDueDate,
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: contentW,
-                child: ElevatedButton(
-                  onPressed: (_busySubmit || _busyBook || _busyUser || _book == null || _user == null)
-                      ? null
-                      : _createBorrowRecord,
-                  child: _busySubmit
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
-                        )
-                      : Text(t.createBorrowButton),
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -465,7 +685,9 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     final t = AppLocalizations.of(context)!;
     final code = _bookCodeController.text.trim();
     if (code.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.pleaseEnterBookCode)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.pleaseEnterBookCode)));
       return;
     }
 
@@ -487,7 +709,10 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
       }
 
       // Nếu không phải id thì thử theo ISBN
-      final byIsbn = await booksRef.where('isbn', isEqualTo: code).limit(1).get();
+      final byIsbn = await booksRef
+          .where('isbn', isEqualTo: code)
+          .limit(1)
+          .get();
       if (!mounted || seq != _bookLookupSeq) return;
       if (byIsbn.docs.isNotEmpty) {
         final doc = byIsbn.docs.first;
@@ -498,11 +723,15 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
       if (!mounted || seq != _bookLookupSeq) return;
       setState(() => _book = null);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.bookNotFoundShort)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.bookNotFoundShort)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.bookLookupError('$e'))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.bookLookupError('$e'))));
       }
     } finally {
       if (mounted && seq == _bookLookupSeq) {
@@ -518,7 +747,9 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
 
     final q = _userQueryController.text.trim();
     if (q.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.pleaseEnterStudentQuery)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.pleaseEnterStudentQuery)));
       return;
     }
 
@@ -540,7 +771,10 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
       }
 
       // Thử theo email
-      final byEmail = await usersRef.where('email', isEqualTo: q).limit(1).get();
+      final byEmail = await usersRef
+          .where('email', isEqualTo: q)
+          .limit(1)
+          .get();
       if (!mounted || seq != _userLookupSeq) return;
       if (byEmail.docs.isNotEmpty) {
         final doc = byEmail.docs.first;
@@ -549,7 +783,10 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
       }
 
       // Thử theo MSSV (studentCode)
-      final byStudentCode = await usersRef.where('studentCode', isEqualTo: q).limit(1).get();
+      final byStudentCode = await usersRef
+          .where('studentCode', isEqualTo: q)
+          .limit(1)
+          .get();
       if (!mounted || seq != _userLookupSeq) return;
       if (byStudentCode.docs.isNotEmpty) {
         final doc = byStudentCode.docs.first;
@@ -560,11 +797,15 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
       if (!mounted || seq != _userLookupSeq) return;
       setState(() => _user = null);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.studentNotFound)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.studentNotFound)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.studentLookupError('$e'))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.studentLookupError('$e'))));
       }
     } finally {
       if (mounted && seq == _userLookupSeq) {
@@ -581,15 +822,17 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     if (book == null || user == null) return;
 
     if (!user.isActive) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.studentLockedCannotBorrow)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.studentLockedCannotBorrow)));
       return;
     }
 
     final adminUid = FirebaseAuth.instance.currentUser?.uid;
     if (adminUid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.needReSignIn)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.needReSignIn)));
       return;
     }
 
@@ -598,9 +841,9 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     final minDue = today.add(Duration(days: BorrowPolicy.minLoanDays));
     final maxDue = today.add(Duration(days: BorrowPolicy.maxLoanDays));
     if (dueDay.isBefore(minDue) || dueDay.isAfter(maxDue)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.borrowDueDateErrorRange)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.borrowDueDateErrorRange)));
       return;
     }
 
@@ -618,20 +861,18 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
       if (dup.docs.isNotEmpty) {
         if (mounted) {
           setState(() => _busySubmit = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t.borrowSameBookAlready)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(t.borrowSameBookAlready)));
         }
         return;
       }
 
       final maxB = await LibraryConfigService.maxActiveBorrowsPerUser();
-      final activeAll = await db
-          .collection('borrow_records')
-          .where('userId', isEqualTo: user.id)
-          .where('status', isEqualTo: 'borrowing')
-          .get();
-      if (activeAll.docs.length >= maxB) {
+      final atCap = await BorrowRepository(
+        db: db,
+      ).hasActiveBorrowCountAtLeast(userId: user.id, maxActive: maxB);
+      if (atCap) {
         if (mounted) {
           setState(() => _busySubmit = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -659,7 +900,10 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
         }
         final userData = userSnap.data();
 
-        final available = _readInt(bookData['availableQuantity'] ?? bookData['available'], 0);
+        final available = _readInt(
+          bookData['availableQuantity'] ?? bookData['available'],
+          0,
+        );
         if (available <= 0) {
           throw Exception(t.borrowOutOfStock);
         }
@@ -673,9 +917,7 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
 
         // Dùng số tường minh thay vì FieldValue.increment để rule `hasOnly(['totalBorrowed'])` cho manager khớp ổn định.
         final prevBorrowed = _readInt(userData?['totalBorrowed'], 0);
-        tx.update(userRef, {
-          'totalBorrowed': prevBorrowed + 1,
-        });
+        tx.update(userRef, {'totalBorrowed': prevBorrowed + 1});
 
         tx.set(borrowRef, {
           'userId': user.id,
@@ -712,7 +954,9 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
         context: context,
         barrierDismissible: false,
         builder: (dialogCtx) => AlertDialog(
-          title: Text(AppLocalizations.of(dialogCtx)!.borrowCreatedSuccessTitle),
+          title: Text(
+            AppLocalizations.of(dialogCtx)!.borrowCreatedSuccessTitle,
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -768,7 +1012,9 @@ class _BorrowCreateScreenState extends State<BorrowCreateScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.borrowFailed('$e'))),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.borrowFailed('$e')),
+          ),
         );
       }
     } finally {
@@ -782,10 +1028,7 @@ class _BorrowFlowSteps extends StatelessWidget {
   final bool bookOk;
   final bool userOk;
 
-  const _BorrowFlowSteps({
-    required this.bookOk,
-    required this.userOk,
-  });
+  const _BorrowFlowSteps({required this.bookOk, required this.userOk});
 
   @override
   Widget build(BuildContext context) {
@@ -799,10 +1042,19 @@ class _BorrowFlowSteps extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 14,
-              backgroundColor: done ? c.primaryContainer : c.surfaceContainerHighest,
+              backgroundColor: done
+                  ? c.primaryContainer
+                  : c.surfaceContainerHighest,
               child: done
                   ? Icon(Icons.check, size: 16, color: c.onPrimaryContainer)
-                  : Text('$n', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color)),
+                  : Text(
+                      '$n',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -820,10 +1072,21 @@ class _BorrowFlowSteps extends StatelessWidget {
       );
     }
 
-    return Card(
-      margin: EdgeInsets.zero,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: c.outlineVariant.withValues(alpha: 0.55)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         child: Row(
           children: [
             step(1, t.borrowStepBook, bookOk, !bookOk),
@@ -836,7 +1099,12 @@ class _BorrowFlowSteps extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 20),
               child: Icon(Icons.chevron_right, size: 18, color: c.outline),
             ),
-            step(3, t.borrowStepCreateTicket, bookOk && userOk, bookOk && userOk),
+            step(
+              3,
+              t.borrowStepCreateTicket,
+              bookOk && userOk,
+              bookOk && userOk,
+            ),
           ],
         ),
       ),
@@ -846,24 +1114,27 @@ class _BorrowFlowSteps extends StatelessWidget {
 
 class _ReadonlyField extends StatelessWidget {
   final String value;
-  final double width;
-  const _ReadonlyField({required this.value, required this.width});
+  const _ReadonlyField({required this.value});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: width,
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.42)),
       ),
       child: Row(
         children: [
           Expanded(child: Text(value, style: theme.textTheme.bodyLarge)),
-          Icon(Icons.calendar_today, color: theme.colorScheme.onSurfaceVariant, size: 20),
+          Icon(
+            Icons.calendar_today,
+            color: theme.colorScheme.onSurfaceVariant,
+            size: 20,
+          ),
         ],
       ),
     );
@@ -871,13 +1142,11 @@ class _ReadonlyField extends StatelessWidget {
 }
 
 class _DueDatePickerTile extends StatelessWidget {
-  final double width;
   final String valueText;
   final bool enabled;
   final VoidCallback onTap;
 
   const _DueDatePickerTile({
-    required this.width,
     required this.valueText,
     required this.enabled,
     required this.onTap,
@@ -887,17 +1156,19 @@ class _DueDatePickerTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-      borderRadius: BorderRadius.circular(12),
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          width: width,
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.42),
+            ),
           ),
           child: Row(
             children: [
@@ -905,13 +1176,17 @@ class _DueDatePickerTile extends StatelessWidget {
                 child: Text(
                   valueText,
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    color: enabled ? null : theme.colorScheme.onSurface.withValues(alpha: 0.38),
+                    color: enabled
+                        ? null
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.38),
                   ),
                 ),
               ),
               Icon(
                 Icons.edit_calendar_outlined,
-                color: enabled ? theme.colorScheme.primary : theme.colorScheme.onSurface.withValues(alpha: 0.38),
+                color: enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.38),
                 size: 22,
               ),
             ],
@@ -952,12 +1227,18 @@ class _BookPreview {
 
   factory _BookPreview.fromDoc(String id, Map<String, dynamic> data) {
     final quantity = _asInt(data['quantity']);
-    final available = _asInt(data['availableQuantity'] ?? data['available'], quantity);
+    final available = _asInt(
+      data['availableQuantity'] ?? data['available'],
+      quantity,
+    );
     return _BookPreview(
       id: id,
       title: data['title']?.toString() ?? '',
       author: data['author']?.toString() ?? '',
-      category: (data['category'] ?? data['categoryId'] ?? kDefaultBookCategory)?.toString() ?? kDefaultBookCategory,
+      category:
+          (data['category'] ?? data['categoryId'] ?? kDefaultBookCategory)
+              ?.toString() ??
+          kDefaultBookCategory,
       isbn: data['isbn']?.toString() ?? '',
       imageUrl: (data['imageUrl'] ?? '').toString(),
       quantity: quantity,
@@ -986,8 +1267,9 @@ class _UserPreview {
     final isActive = activeRaw is bool
         ? activeRaw
         : (activeRaw == null
-            ? true
-            : (activeRaw.toString().toLowerCase() == 'true' || activeRaw.toString() == '1'));
+              ? true
+              : (activeRaw.toString().toLowerCase() == 'true' ||
+                    activeRaw.toString() == '1'));
     return _UserPreview(
       id: id,
       fullName: data['fullName']?.toString() ?? '',
@@ -1008,6 +1290,13 @@ class _BookCard extends StatelessWidget {
     final theme = Theme.of(context);
     final color = book.available > 0 ? Colors.green : Colors.red;
     return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.35)),
+      ),
       child: ListTile(
         isThreeLine: true,
         leading: buildBookCoverDisplay(
@@ -1047,25 +1336,46 @@ class _UserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final locked = !user.isActive;
     return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.35)),
+      ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: locked ? Colors.red.withValues(alpha: 0.15) : Colors.blue.withValues(alpha: 0.15),
+          backgroundColor: locked
+              ? Colors.red.withValues(alpha: 0.15)
+              : Colors.blue.withValues(alpha: 0.15),
           child: Icon(Icons.person, color: locked ? Colors.red : Colors.blue),
         ),
-        title: Text(user.fullName.isEmpty ? t.userNamePlaceholder : user.fullName),
+        title: Text(
+          user.fullName.isEmpty ? t.userNamePlaceholder : user.fullName,
+        ),
         subtitle: Text(
           '${user.email}${user.studentCode.isNotEmpty ? ' • ${user.studentCode}' : ''}',
         ),
         trailing: locked
             ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.red.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(t.lockedShort, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                child: Text(
+                  t.lockedShort,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               )
             : const SizedBox.shrink(),
       ),

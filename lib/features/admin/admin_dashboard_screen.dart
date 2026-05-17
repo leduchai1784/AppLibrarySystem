@@ -29,12 +29,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late final bool _showSettingsTab;
 
   List<_NavItem> _navItems(AppLocalizations t, {required bool scanEnabled}) => [
-        _NavItem(Icons.home_outlined, Icons.home, t.tabHome),
-        _NavItem(Icons.menu_book_outlined, Icons.menu_book, t.tabBooks),
-        if (scanEnabled) _NavItem(Icons.qr_code_scanner, Icons.qr_code_scanner, t.tabScan),
-        _NavItem(Icons.manage_search_outlined, Icons.manage_search, t.tabManage),
-        _NavItem(Icons.settings_outlined, Icons.settings, t.tabSettings),
-      ];
+    _NavItem(Icons.home_outlined, Icons.home, t.tabHome),
+    _NavItem(Icons.menu_book_outlined, Icons.menu_book, t.tabBooks),
+    if (scanEnabled)
+      _NavItem(Icons.qr_code_scanner, Icons.qr_code_scanner, t.tabScan),
+    _NavItem(Icons.manage_search_outlined, Icons.manage_search, t.tabManage),
+    _NavItem(Icons.settings_outlined, Icons.settings, t.tabSettings),
+  ];
 
   @override
   void initState() {
@@ -46,7 +47,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return [
       const AdminHomeTab(),
       const BookListScreen(),
-      if (scanEnabled) kIsWeb ? const WebStaffDeskTab() : ScanBookTab(scannerTabActive: _currentIndex == 2),
+      if (scanEnabled)
+        kIsWeb
+            ? const WebStaffDeskTab()
+            : ScanBookTab(scannerTabActive: _currentIndex == 2),
       const AdminManageTab(),
       if (_showSettingsTab) const LibrarySettingsTab(),
     ];
@@ -63,9 +67,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       stream: FeatureFlagsService.watchFlags(),
       builder: (context, snap) {
         final flags = snap.data;
-        final scanEnabled = FeatureFlagsService.flag(flags, FeatureFlagsService.scanEnabled);
+        final scanEnabled = FeatureFlagsService.flag(
+          flags,
+          FeatureFlagsService.scanEnabled,
+        );
         final tabs = _buildTabChildren(scanEnabled: scanEnabled);
-        final nav = _navItems(AppLocalizations.of(context)!, scanEnabled: scanEnabled);
+        final nav = _navItems(
+          AppLocalizations.of(context)!,
+          scanEnabled: scanEnabled,
+        );
 
         final maxIndex = (tabs.length - 1).clamp(0, 99);
         final safeIndex = _currentIndex.clamp(0, maxIndex);
@@ -78,11 +88,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
         return Scaffold(
           appBar: _buildAppBar(scanEnabled: scanEnabled),
-          body: IndexedStack(
-            index: safeIndex,
-            children: tabs,
+          body: IndexedStack(index: safeIndex, children: tabs),
+          bottomNavigationBar: _buildMobileBottomBar(
+            theme,
+            nav,
+            scanEnabled: scanEnabled,
           ),
-          bottomNavigationBar: _buildMobileBottomBar(theme, nav, scanEnabled: scanEnabled),
         );
       },
     );
@@ -98,7 +109,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           centerTitle: true,
           actions: [
             NotificationBellButton(
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.notifications),
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.notifications),
             ),
             IconButton(
               icon: const Icon(Icons.account_circle_outlined),
@@ -109,11 +121,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 1:
         return null;
       case 2:
-        if (!scanEnabled) return AppBar(title: Text(t.manageTitle), centerTitle: true);
-        return AppBar(
-          title: Text(t.scanBookQrTitle),
-          centerTitle: true,
-        );
+        if (!scanEnabled)
+          return AppBar(title: Text(t.manageTitle), centerTitle: true);
+        return AppBar(title: Text(t.scanBookQrTitle), centerTitle: true);
       case 3:
         return AppBar(title: Text(t.manageTitle), centerTitle: true);
       case 4:
@@ -136,7 +146,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     const centerButtonSize = 56.0;
 
     final activeColor = theme.colorScheme.primary;
-    final inactiveColor = theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ?? Colors.grey;
+    final inactiveColor =
+        theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ?? Colors.grey;
 
     if (!scanEnabled) {
       // Không có tab Quét: bottom bar 4 item tiêu chuẩn.
@@ -147,7 +158,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           padding: EdgeInsets.fromLTRB(14, 10, 14, bottomPad),
           decoration: BoxDecoration(
             color: theme.cardColor,
-            border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6))),
+            border: Border(
+              top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -210,7 +223,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               decoration: BoxDecoration(
                 color: theme.cardColor,
                 border: Border(
-                  top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
+                  top: BorderSide(
+                    color: theme.dividerColor.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               child: Row(

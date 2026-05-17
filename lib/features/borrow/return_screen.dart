@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/book_cover_from_firestore.dart';
@@ -31,8 +32,7 @@ class ReturnScreen extends StatefulWidget {
 }
 
 class _ReturnScreenState extends State<ReturnScreen> {
-  final _bookCodeController = TextEditingController();
-  final _userQueryController = TextEditingController();
+  final _ticketController = TextEditingController();
 
   bool _isLoading = false;
   _BorrowRecordPreview? _record;
@@ -47,7 +47,10 @@ class _ReturnScreenState extends State<ReturnScreen> {
 
   Future<void> _loadFinePerDay() async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('library_settings').doc('config').get();
+      final doc = await FirebaseFirestore.instance
+          .collection('library_settings')
+          .doc('config')
+          .get();
       final data = doc.data();
       final finePerDay = data?['finePerDay'];
       if (finePerDay is int && mounted) {
@@ -60,8 +63,7 @@ class _ReturnScreenState extends State<ReturnScreen> {
 
   @override
   void dispose() {
-    _bookCodeController.dispose();
-    _userQueryController.dispose();
+    _ticketController.dispose();
     super.dispose();
   }
 
@@ -72,27 +74,18 @@ class _ReturnScreenState extends State<ReturnScreen> {
     _routeArgsLoaded = true;
     final args = ModalRoute.of(context)?.settings.arguments;
     final map = args is Map ? args : null;
-    final bookId = map?['bookId']?.toString();
-    final userId = map?['userId']?.toString();
     final borrowRecordId = map?['borrowRecordId']?.toString();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       if (borrowRecordId != null && borrowRecordId.isNotEmpty) {
+        _ticketController.text =
+            '${LibraryQrPayload.returnPrefix}$borrowRecordId';
         await _lookupByBorrowRecordId(borrowRecordId);
         return;
       }
-      if (bookId != null && bookId.isNotEmpty) {
-        _bookCodeController.text = bookId;
-      }
-      if (userId != null && userId.isNotEmpty) {
-        _userQueryController.text = userId;
-      }
-      final code = _bookCodeController.text.trim();
-      final uq = _userQueryController.text.trim();
-      if (code.isNotEmpty && uq.isNotEmpty) {
-        await _lookupBorrowingRecord();
-      }
+      // Không tự động tìm/đối chiếu để tránh “tự trả” khi chỉ mở màn từ nơi khác.
+      // Thủ thư chủ động bấm TÌM hoặc quét phiếu mượn (LIB_RET:...) để trả.
     });
   }
 
@@ -125,22 +118,30 @@ class _ReturnScreenState extends State<ReturnScreen> {
     }
     if (id == null || id.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.cannotReadBorrowTicket)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.cannotReadBorrowTicket)));
       return;
     }
+    _ticketController.text = '${LibraryQrPayload.returnPrefix}$id';
     await _lookupByBorrowRecordId(id);
   }
 
   Future<void> _lookupByBorrowRecordId(String id) async {
     setState(() => _isLoading = true);
     try {
-      final doc = await FirebaseFirestore.instance.collection('borrow_records').doc(id).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('borrow_records')
+          .doc(id)
+          .get();
       if (!doc.exists) {
         setState(() => _record = null);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.borrowTicketNotFound)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.borrowTicketNotFound),
+            ),
+          );
         }
         return;
       }
@@ -154,7 +155,11 @@ class _ReturnScreenState extends State<ReturnScreen> {
         setState(() => _record = null);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.borrowTicketNotActive)),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(context)!.borrowTicketNotActive,
+              ),
+            ),
           );
         }
         return;
@@ -166,12 +171,12 @@ class _ReturnScreenState extends State<ReturnScreen> {
         userNamePlaceholder: loc.userNamePlaceholder,
       );
       setState(() => _record = record);
-      _bookCodeController.text = record.bookId;
-      _userQueryController.text = record.userId;
     } catch (e) {
       if (mounted) {
         final t = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.returnLoadRecordError('$e'))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.returnLoadRecordError('$e'))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -183,188 +188,136 @@ class _ReturnScreenState extends State<ReturnScreen> {
     final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(t.returnBookTitle),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(t.returnFindTitle, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-              t.returnFindBody,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            if (!kIsWeb) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _scanBorrowTicketQr,
-                  icon: const Icon(Icons.confirmation_number_outlined, size: 20),
-                    label: Text(t.scanBorrowTicketTitle),
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Text(t.enterBookCode, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _bookCodeController,
-              decoration: InputDecoration(
-                hintText: t.bookIdOrIsbnHint,
-                prefixIcon: const Icon(Icons.tag),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(t.studentQueryLabel, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _userQueryController,
-              decoration: InputDecoration(
-                hintText: t.studentQueryHint,
-                prefixIcon: const Icon(Icons.person_outline),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _lookupBorrowingRecord,
-                icon: const Icon(Icons.search),
-                label: Text(t.findBorrowingRecord),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Text(t.borrowRecordLabel, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            if (_record == null)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    t.borrowRecordNotSelected,
-                    style: theme.textTheme.bodyMedium,
+    if (!AppUser.isStaff) {
+      return Scaffold(
+        appBar: AppBar(title: Text(t.returnBookTitle)),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    t.statsPermissionDenied,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-              )
-            else
-              _BorrowRecordCard(
-                record: _record!,
-                finePerDay: _finePerDay,
-                onClear: _isLoading ? null : () => setState(() => _record = null),
-                onConfirm: _isLoading ? null : _confirmReturn,
+                  const SizedBox(height: 8),
+                  Text(
+                    t.currentBorrowsPermissionHint,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(t.commonClose),
+                  ),
+                ],
               ),
-
-            const SizedBox(height: 16),
-            Text(t.returnRecentHistory, style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            _RecentReturnsList(adminUid: FirebaseAuth.instance.currentUser?.uid),
-          ],
+            ),
+          ),
         ),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(t.returnBookTitle), scrolledUnderElevation: 0),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                16 + MediaQuery.paddingOf(context).bottom,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ReturnSearchPanel(
+                    theme: theme,
+                    t: t,
+                    ticketController: _ticketController,
+                    isLoading: _isLoading,
+                    onScan: !kIsWeb ? _scanBorrowTicketQr : null,
+                    onFind: _lookupBorrowTicketFromInput,
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    t.borrowRecordLabel,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: _record == null
+                        ? _ReturnEmptyTicketCard(
+                            key: const ValueKey('empty'),
+                            theme: theme,
+                            message: t.borrowRecordNotSelected,
+                          )
+                        : _BorrowRecordCard(
+                            key: ValueKey(_record!.id),
+                            record: _record!,
+                            finePerDay: _finePerDay,
+                            onClear: _isLoading
+                                ? null
+                                : () => setState(() => _record = null),
+                            onConfirm: _isLoading ? null : _confirmReturn,
+                          ),
+                  ),
+                  const SizedBox(height: 26),
+                  Text(
+                    t.returnRecentHistory,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _RecentReturnsList(
+                    adminUid: FirebaseAuth.instance.currentUser?.uid,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _lookupBorrowingRecord() async {
+  Future<void> _lookupBorrowTicketFromInput() async {
     final t = AppLocalizations.of(context)!;
-    final code = _bookCodeController.text.trim();
-    final uq = _userQueryController.text.trim();
-    if (code.isEmpty || uq.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.returnEnterBookAndStudent)),
-      );
+    final raw = _ticketController.text.trim();
+    if (raw.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.cannotReadBorrowTicket)));
       return;
     }
-
-    setState(() => _isLoading = true);
-    try {
-      final db = FirebaseFirestore.instance;
-
-      // Resolve bookId
-      String? bookId;
-      final byId = await db.collection('books').doc(code).get();
-      if (byId.exists) {
-        bookId = byId.id;
-      } else {
-        final byIsbn = await db.collection('books').where('isbn', isEqualTo: code).limit(1).get();
-        if (byIsbn.docs.isNotEmpty) {
-          bookId = byIsbn.docs.first.id;
-        }
-      }
-
-      if (bookId == null) {
-        setState(() => _record = null);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.returnBookNotFound)));
-        }
-        return;
-      }
-
-      // Resolve userId (nếu admin truyền thẳng userId thì nhận luôn)
-      String? userId;
-      final directUserId = uq;
-      if (directUserId.isNotEmpty) {
-        final userById = await db.collection('users').doc(directUserId).get();
-        if (userById.exists) {
-          userId = userById.id;
-        }
-      }
-
-      final byEmail = await db.collection('users').where('email', isEqualTo: uq).limit(1).get();
-      if (byEmail.docs.isNotEmpty) {
-        userId = byEmail.docs.first.id;
-      } else {
-        final byStudentCode = await db.collection('users').where('studentCode', isEqualTo: uq).limit(1).get();
-        if (byStudentCode.docs.isNotEmpty) {
-          userId = byStudentCode.docs.first.id;
-        }
-      }
-
-      if (userId == null) {
-        setState(() => _record = null);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.returnStudentNotFound)));
-        }
-        return;
-      }
-
-      // Find active borrow record
-      final q = await db
-          .collection('borrow_records')
-          .where('bookId', isEqualTo: bookId)
-          .where('userId', isEqualTo: userId)
-          .where('status', isEqualTo: 'borrowing')
-          .limit(1)
-          .get();
-
-      if (q.docs.isEmpty) {
-        setState(() => _record = null);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t.returnNoActiveBorrowFound)),
-          );
-        }
-        return;
-      }
-
-      final doc = q.docs.first;
-      final record = await _BorrowRecordPreview.fromBorrowDoc(
-        doc,
-        userNamePlaceholder: t.userNamePlaceholder,
-      );
-      setState(() => _record = record);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.returnLookupError('$e'))));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    final parsed = LibraryQrParseResult.parse(raw);
+    final id = (parsed.borrowRecordId ?? parsed.bookLookupKey).trim();
+    if (id.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.cannotReadBorrowTicket)));
+      return;
     }
+    await _lookupByBorrowRecordId(id);
   }
 
   Future<void> _confirmReturn() async {
@@ -374,7 +327,9 @@ class _ReturnScreenState extends State<ReturnScreen> {
 
     final adminUid = FirebaseAuth.instance.currentUser?.uid;
     if (adminUid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.returnNeedRelogin)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.returnNeedRelogin)));
       return;
     }
 
@@ -396,7 +351,10 @@ class _ReturnScreenState extends State<ReturnScreen> {
         if (bookData == null) {
           throw BorrowReturnException('book_not_found');
         }
-        final available = _readInt(bookData['availableQuantity'] ?? bookData['available'], 0);
+        final available = _readInt(
+          bookData['availableQuantity'] ?? bookData['available'],
+          0,
+        );
 
         tx.update(bookRef, {
           'availableQuantity': available + 1,
@@ -414,7 +372,9 @@ class _ReturnScreenState extends State<ReturnScreen> {
       try {
         await db.collection('notifications').add({
           'userId': record.userId,
-          'title': status == 'late' ? t.notifReturnLateTitle : t.notifReturnOnTimeTitle,
+          'title': status == 'late'
+              ? t.notifReturnLateTitle
+              : t.notifReturnOnTimeTitle,
           'body': status == 'late'
               ? t.notifReturnLateBody(record.bookTitle, '$daysLate')
               : t.notifReturnDeskBody(record.bookTitle),
@@ -424,7 +384,9 @@ class _ReturnScreenState extends State<ReturnScreen> {
       } catch (_) {}
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.returnSuccessToast)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.returnSuccessToast)));
       setState(() => _record = null);
     } on BorrowReturnException catch (e) {
       if (mounted) {
@@ -434,7 +396,9 @@ class _ReturnScreenState extends State<ReturnScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.returnConfirmError('$e'))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.returnConfirmError('$e'))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -446,6 +410,228 @@ class _ReturnScreenState extends State<ReturnScreen> {
     final nowDateOnly = DateTime(now.year, now.month, now.day);
     final diff = nowDateOnly.difference(dueDateOnly).inDays;
     return diff > 0 ? diff : 0;
+  }
+}
+
+/// Khối tìm phiếu — nền card, CTA quét nổi bật (mobile), ô nhập + nút tìm.
+class _ReturnSearchPanel extends StatelessWidget {
+  const _ReturnSearchPanel({
+    required this.theme,
+    required this.t,
+    required this.ticketController,
+    required this.isLoading,
+    required this.onScan,
+    required this.onFind,
+  });
+
+  final ThemeData theme;
+  final AppLocalizations t;
+  final TextEditingController ticketController;
+  final bool isLoading;
+  final VoidCallback? onScan;
+  final VoidCallback onFind;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = theme.colorScheme;
+    final borderColor = theme.dividerColor.withValues(alpha: 0.38);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.surfaceContainerHighest.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: c.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.manage_search_rounded,
+                    color: c.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    t.returnFindTitle,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              t.returnFindBody,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: c.onSurfaceVariant,
+                height: 1.5,
+              ),
+            ),
+            if (onScan != null) ...[
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton.tonalIcon(
+                  onPressed: isLoading ? null : onScan,
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 24),
+                  label: Text(t.scanBorrowTicketTitle),
+                  style: FilledButton.styleFrom(
+                    alignment: Alignment.center,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: Divider(height: 1, color: borderColor)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    t.commonOr,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: c.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+                Expanded(child: Divider(height: 1, color: borderColor)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              key: const Key('admin_search_ticket_field'),
+              controller: ticketController,
+              enabled: !isLoading,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => onFind(),
+              style: theme.textTheme.bodyLarge,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: c.surface,
+                hintText: t.scanBorrowTicketHint,
+                hintMaxLines: 2,
+                hintStyle: TextStyle(
+                  color: c.onSurfaceVariant.withValues(alpha: 0.75),
+                  fontSize: 14,
+                ),
+                prefixIcon: Icon(
+                  Icons.tag_rounded,
+                  color: c.primary.withValues(alpha: 0.88),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: borderColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: c.primary, width: 1.6),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: FilledButton.icon(
+                onPressed: isLoading ? null : onFind,
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.search_rounded, size: 22),
+                label: Text(
+                  t.findBorrowingRecord,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReturnEmptyTicketCard extends StatelessWidget {
+  const _ReturnEmptyTicketCard({
+    super.key,
+    required this.theme,
+    required this.message,
+  });
+
+  final ThemeData theme;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = theme.colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.4)),
+        color: c.surfaceContainerHighest.withValues(alpha: 0.28),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+        child: Column(
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 48,
+              color: c.outline.withValues(alpha: 0.85),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: c.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -465,13 +651,6 @@ class _BorrowRecordPreview {
     required this.bookTitle,
     required this.userLabel,
   });
-
-  static Future<_BorrowRecordPreview> fromBorrowDoc(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc, {
-    required String userNamePlaceholder,
-  }) {
-    return fromBorrowSnapshot(doc, userNamePlaceholder: userNamePlaceholder);
-  }
 
   static Future<_BorrowRecordPreview> fromBorrowSnapshot(
     DocumentSnapshot<Map<String, dynamic>> doc, {
@@ -517,6 +696,7 @@ class _BorrowRecordCard extends StatelessWidget {
   final VoidCallback? onConfirm;
 
   const _BorrowRecordCard({
+    super.key,
     required this.record,
     required this.finePerDay,
     required this.onClear,
@@ -535,38 +715,105 @@ class _BorrowRecordCard extends StatelessWidget {
     final dueText = due == null ? '—' : _formatDate(due);
     final dueColor = daysLate > 0 ? AppColors.error : AppColors.success;
 
-    return Card(
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.38)),
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                BookCoverFromBookId(
-                  bookId: record.bookId,
-                  width: 48,
-                  height: 64,
-                  borderRadius: BorderRadius.circular(8),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: dueColor.withValues(alpha: 0.35),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: BookCoverFromBookId(
+                    bookId: record.bookId,
+                    width: 52,
+                    height: 70,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(record.bookTitle.isEmpty ? t.returnMissingBookName : record.bookTitle, style: AppTextStyles.h3),
-                      const SizedBox(height: 2),
-                      Text(record.userLabel, style: AppTextStyles.caption),
-                      const SizedBox(height: 2),
                       Text(
-                        t.returnDueDateLabel(dueText),
-                        style: AppTextStyles.small.copyWith(color: dueColor),
+                        record.bookTitle.isEmpty
+                            ? t.returnMissingBookName
+                            : record.bookTitle,
+                        style: AppTextStyles.h3.copyWith(
+                          fontSize: 17,
+                          height: 1.25,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_outline_rounded,
+                            size: 16,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              record.userLabel,
+                              style: AppTextStyles.caption.copyWith(
+                                fontSize: 13,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: dueColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          t.returnDueDateLabel(dueText),
+                          style: AppTextStyles.small.copyWith(
+                            color: dueColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                       if (daysLate > 0) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 8),
                         Text(
                           t.returnLateDaysFine(daysLate, fine),
-                          style: AppTextStyles.small.copyWith(color: AppColors.error),
+                          style: AppTextStyles.small.copyWith(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ],
@@ -574,28 +821,30 @@ class _BorrowRecordCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onClear,
-                    child: Text(t.returnDeleteRecord),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                key: const Key('confirm_return_button'),
+                onPressed: onConfirm,
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onConfirm,
-                    child: Text(t.returnConfirmButton),
-                  ),
+                child: Text(
+                  t.returnConfirmButton,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-              ],
+              ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'finePerDay: $finePerDay',
-              style: theme.textTheme.bodySmall,
+            Center(
+              child: TextButton(
+                onPressed: onClear,
+                child: Text(t.returnDeleteRecord),
+              ),
             ),
           ],
         ),
@@ -649,29 +898,101 @@ class _RecentReturnsList extends StatelessWidget {
 
         final docs = snapshot.data?.docs ?? [];
         if (docs.isEmpty) {
-          return Text(t.returnNoRecentReturns);
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: Text(
+                t.returnNoRecentReturns,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          );
         }
 
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
             final data = docs[index].data();
             final status = (data['status'] ?? '') as String;
-            final fine = (data['fineAmount'] ?? 0) as int;
-            final iconColor = status == 'late' ? AppColors.error : AppColors.success;
-            final icon = status == 'late' ? Icons.warning_amber_rounded : Icons.check_circle;
+            final fine = (data['fineAmount'] as num?)?.toInt() ?? 0;
+            final isLate = status == 'late';
+            final iconColor = isLate ? AppColors.error : AppColors.success;
+            final bg = isLate
+                ? AppColors.error.withValues(alpha: 0.08)
+                : AppColors.success.withValues(alpha: 0.08);
             final bookId = (data['bookId'] ?? '') as String;
+            final snapTitle = (data['bookTitleSnapshot'] ?? '')
+                .toString()
+                .trim();
+            final title = snapTitle.isNotEmpty
+                ? snapTitle
+                : t.returnBookPrefix(bookId);
 
-            return Card(
-              child: ListTile(
-                leading: Icon(icon, color: iconColor),
-                title: Text(t.returnBookPrefix(bookId), style: AppTextStyles.body),
-                subtitle: Text(
-                  status == 'late' ? t.returnLateWithFine(fine) : t.returnOnTime,
-                  style: AppTextStyles.caption,
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+                ),
+                color: Theme.of(context).colorScheme.surface,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: bg,
+                      child: Icon(
+                        isLate ? Icons.schedule_rounded : Icons.check_rounded,
+                        color: iconColor,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isLate
+                                ? t.returnLateWithFine(fine)
+                                : t.returnOnTime,
+                            style: AppTextStyles.caption.copyWith(
+                              color: isLate
+                                  ? AppColors.error
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                              fontWeight: isLate
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );

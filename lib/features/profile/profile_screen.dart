@@ -6,15 +6,24 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../gen/l10n/app_localizations.dart';
 
-InputDecoration _profileEditFieldDecoration(ThemeData theme, String label, IconData icon) {
+InputDecoration _profileEditFieldDecoration(
+  ThemeData theme,
+  String label,
+  IconData icon,
+) {
   return InputDecoration(
     isDense: true,
     labelText: label,
-    labelStyle: TextStyle(fontSize: 13.5, color: theme.colorScheme.onSurfaceVariant),
+    labelStyle: TextStyle(
+      fontSize: 13.5,
+      color: theme.colorScheme.onSurfaceVariant,
+    ),
     prefixIcon: Icon(icon, size: 20),
     prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 40),
     filled: true,
-    fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+    fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+      alpha: 0.45,
+    ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
     enabledBorder: OutlineInputBorder(
@@ -23,7 +32,10 @@ InputDecoration _profileEditFieldDecoration(ThemeData theme, String label, IconD
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.85), width: 1.4),
+      borderSide: BorderSide(
+        color: theme.colorScheme.primary.withValues(alpha: 0.85),
+        width: 1.4,
+      ),
     ),
   );
 }
@@ -49,6 +61,7 @@ class _EditProfileSheet extends StatefulWidget {
   final String studentCode;
   final String address;
   final String email;
+
   /// [BuildContext] của màn [ProfileScreen] (còn mounted sau khi sheet đóng) để hiện SnackBar.
   final BuildContext snackbarContext;
 
@@ -89,9 +102,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     final isStudent = widget.roleStr.toLowerCase() == 'student';
 
     if (newName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.pleaseEnterFullName)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.pleaseEnterFullName)));
       return;
     }
 
@@ -125,15 +138,15 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       Navigator.of(context).pop();
       final parent = widget.snackbarContext;
       if (parent.mounted) {
-        ScaffoldMessenger.of(parent).showSnackBar(
-          SnackBar(content: Text(t.profileUpdated)),
-        );
+        ScaffoldMessenger.of(
+          parent,
+        ).showSnackBar(SnackBar(content: Text(t.profileUpdated)));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.profileUpdateFailed('$e'))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.profileUpdateFailed('$e'))));
     }
   }
 
@@ -145,21 +158,32 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 12 + MediaQuery.viewInsetsOf(context).bottom),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          12 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               t.profileEdit,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _nameCtrl,
               textInputAction: TextInputAction.next,
               style: const TextStyle(fontSize: 15),
-              decoration: _profileEditFieldDecoration(theme, t.profileFullNameLabel, Icons.badge_outlined),
+              decoration: _profileEditFieldDecoration(
+                theme,
+                t.profileFullNameLabel,
+                Icons.badge_outlined,
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -167,7 +191,11 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.next,
               style: const TextStyle(fontSize: 15),
-              decoration: _profileEditFieldDecoration(theme, t.profilePhoneLabel, Icons.phone_outlined),
+              decoration: _profileEditFieldDecoration(
+                theme,
+                t.profilePhoneLabel,
+                Icons.phone_outlined,
+              ),
             ),
             if (isStudent) ...[
               const SizedBox(height: 8),
@@ -175,7 +203,11 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                 controller: _codeCtrl,
                 textInputAction: TextInputAction.next,
                 style: const TextStyle(fontSize: 15),
-                decoration: _profileEditFieldDecoration(theme, t.profileStudentCodeLabel, Icons.badge_outlined),
+                decoration: _profileEditFieldDecoration(
+                  theme,
+                  t.profileStudentCodeLabel,
+                  Icons.badge_outlined,
+                ),
               ),
             ],
             const SizedBox(height: 8),
@@ -183,21 +215,34 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               controller: _addressCtrl,
               textInputAction: TextInputAction.done,
               style: const TextStyle(fontSize: 15),
-              decoration: _profileEditFieldDecoration(theme, t.profileAddressLabel, Icons.location_on_outlined),
+              decoration: _profileEditFieldDecoration(
+                theme,
+                t.profileAddressLabel,
+                Icons.location_on_outlined,
+              ),
             ),
             const SizedBox(height: 8),
             InputDecorator(
-              decoration: _profileEditFieldDecoration(theme, t.profileEmailReadonlyLabel, Icons.email_outlined),
+              decoration: _profileEditFieldDecoration(
+                theme,
+                t.profileEmailReadonlyLabel,
+                Icons.email_outlined,
+              ),
               child: Text(
                 widget.email,
-                style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: _onSave,
               icon: const Icon(Icons.save_outlined, size: 20),
@@ -276,11 +321,18 @@ class ProfileScreen extends StatelessWidget {
             icon: const Icon(Icons.edit_outlined),
             tooltip: t.profileEdit,
             onPressed: () async {
-              final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+              final snap = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .get();
               final data = snap.data() ?? {};
               final roleStr = (data['role'] ?? 'student').toString();
-              final fullName = (data['fullName'] ?? authUser?.displayName ?? '').toString().trim();
-              final phone = (data['phone'] ?? authUser?.phoneNumber ?? '').toString().trim();
+              final fullName = (data['fullName'] ?? authUser?.displayName ?? '')
+                  .toString()
+                  .trim();
+              final phone = (data['phone'] ?? authUser?.phoneNumber ?? '')
+                  .toString()
+                  .trim();
               final studentCode = (data['studentCode'] ?? '').toString().trim();
               final address = (data['address'] ?? '').toString().trim();
               final email = (data['email'] ?? authUser?.email ?? '').toString();
@@ -300,21 +352,31 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .snapshots(),
         builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          if (snap.connectionState == ConnectionState.waiting &&
+              !snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
             return Center(child: Text(t.profileLoadError('${snap.error}')));
           }
           final data = snap.data?.data();
-          final fullName = (data?['fullName'] ?? authUser?.displayName ?? '').toString().trim();
+          final fullName = (data?['fullName'] ?? authUser?.displayName ?? '')
+              .toString()
+              .trim();
           final email = (data?['email'] ?? authUser?.email ?? '').toString();
           final studentCode = (data?['studentCode'] ?? '').toString().trim();
-          final phone = (data?['phone'] ?? authUser?.phoneNumber ?? '').toString().trim();
+          final phone = (data?['phone'] ?? authUser?.phoneNumber ?? '')
+              .toString()
+              .trim();
           final address = (data?['address'] ?? '').toString().trim();
-          final avatarUrl = (data?['avatarUrl'] ?? authUser?.photoURL ?? '').toString().trim();
+          final avatarUrl = (data?['avatarUrl'] ?? authUser?.photoURL ?? '')
+              .toString()
+              .trim();
           final roleStr = data?['role'] as String?;
           final roleLabel = _roleLabelLocalized(t, roleStr);
           final isStudent = (roleStr ?? 'student').toLowerCase() == 'student';
@@ -327,8 +389,12 @@ class ProfileScreen extends StatelessWidget {
                 DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                    border: Border.all(color: theme.dividerColor.withValues(alpha: 0.32)),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.5,
+                    ),
+                    border: Border.all(
+                      color: theme.dividerColor.withValues(alpha: 0.32),
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
@@ -336,16 +402,27 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         CircleAvatar(
                           radius: 36,
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                          backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                          backgroundColor: AppColors.primary.withValues(
+                            alpha: 0.12,
+                          ),
+                          backgroundImage: avatarUrl.isNotEmpty
+                              ? NetworkImage(avatarUrl)
+                              : null,
                           child: avatarUrl.isNotEmpty
                               ? null
-                              : const Icon(Icons.person_rounded, size: 40, color: AppColors.primary),
+                              : const Icon(
+                                  Icons.person_rounded,
+                                  size: 40,
+                                  color: AppColors.primary,
+                                ),
                         ),
                         const SizedBox(height: 10),
                         Text(
                           fullName.isEmpty ? t.profileMissingName : fullName,
-                          style: AppTextStyles.h2.copyWith(fontSize: 19, height: 1.2),
+                          style: AppTextStyles.h2.copyWith(
+                            fontSize: 19,
+                            height: 1.2,
+                          ),
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -360,7 +437,10 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
@@ -390,7 +470,12 @@ class ProfileScreen extends StatelessWidget {
                         value: studentCode.isEmpty ? '—' : studentCode,
                       ),
                     if (isStudent)
-                      Divider(height: 1, indent: 50, endIndent: 12, color: theme.dividerColor.withValues(alpha: 0.28)),
+                      Divider(
+                        height: 1,
+                        indent: 50,
+                        endIndent: 12,
+                        color: theme.dividerColor.withValues(alpha: 0.28),
+                      ),
                     _ProfileInfoRow(
                       icon: Icons.phone_outlined,
                       iconColor: AppColors.success,
@@ -398,7 +483,12 @@ class ProfileScreen extends StatelessWidget {
                       label: t.profilePhoneLabel,
                       value: phone.isEmpty ? '—' : phone,
                     ),
-                    Divider(height: 1, indent: 50, endIndent: 12, color: theme.dividerColor.withValues(alpha: 0.28)),
+                    Divider(
+                      height: 1,
+                      indent: 50,
+                      endIndent: 12,
+                      color: theme.dividerColor.withValues(alpha: 0.28),
+                    ),
                     _ProfileInfoRow(
                       icon: Icons.location_on_outlined,
                       iconColor: const Color(0xFF6366F1),
@@ -428,7 +518,9 @@ class _ProfileDetailCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.45,
+        ),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.32)),
       ),
       clipBehavior: Clip.antiAlias,
@@ -485,7 +577,10 @@ class _ProfileInfoRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 SelectableText(
                   value,
-                  style: AppTextStyles.body.copyWith(fontSize: 14.5, height: 1.3),
+                  style: AppTextStyles.body.copyWith(
+                    fontSize: 14.5,
+                    height: 1.3,
+                  ),
                 ),
               ],
             ),

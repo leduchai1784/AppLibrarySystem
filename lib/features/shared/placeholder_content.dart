@@ -27,10 +27,7 @@ class PlaceholderContent extends StatelessWidget {
           const SizedBox(height: 16),
           Text(title, style: AppTextStyles.h2),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: onTap,
-            child: Text(t.viewDetails),
-          ),
+          ElevatedButton(onPressed: onTap, child: Text(t.viewDetails)),
         ],
       ),
     );

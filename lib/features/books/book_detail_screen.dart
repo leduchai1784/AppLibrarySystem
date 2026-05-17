@@ -8,6 +8,8 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/book_cover_display.dart';
 import '../../core/routes/app_routes.dart';
 import '../../gen/l10n/app_localizations.dart';
+import '../../services/feature_flags_service.dart';
+import 'widgets/book_similar_recommendations_section.dart';
 
 /// Màn hình chi tiết sách — đồng bộ Firestore realtime khi có [id].
 class BookDetailScreen extends StatelessWidget {
@@ -28,17 +30,24 @@ class BookDetailScreen extends StatelessWidget {
     return s.isEmpty ? null : s;
   }
 
-  static Map<String, dynamic> _fromFirestore(String id, Map<String, dynamic> data) {
-    final quantity = (data['quantity'] is int) ? data['quantity'] as int : int.tryParse('${data['quantity']}') ?? 0;
-    final availableRaw = data['availableQuantity'] ?? data['available'] ?? quantity;
-    final available =
-        (availableRaw is int) ? availableRaw : int.tryParse('$availableRaw') ?? quantity;
+  static Map<String, dynamic> _fromFirestore(
+    String id,
+    Map<String, dynamic> data,
+  ) {
+    final quantity = (data['quantity'] is int)
+        ? data['quantity'] as int
+        : int.tryParse('${data['quantity']}') ?? 0;
+    final availableRaw =
+        data['availableQuantity'] ?? data['available'] ?? quantity;
+    final available = (availableRaw is int)
+        ? availableRaw
+        : int.tryParse('$availableRaw') ?? quantity;
     final py = data['publishedYear'];
     final publishedYear = py is int
         ? py
         : py is double
-            ? py.toInt()
-            : int.tryParse('${py ?? ''}');
+        ? py.toInt()
+        : int.tryParse('${py ?? ''}');
     final imageUrl = (data['imageUrl'] ?? '').toString().trim();
     final tbcRaw = data['totalBorrowCount'];
     var totalBorrowCount = 0;
@@ -70,8 +79,10 @@ class BookDetailScreen extends StatelessWidget {
     if (aid != null) map['authorId'] = aid;
     final gid = _linkedDocId(data['genreId']);
     if (gid != null) map['genreId'] = gid;
-    if (data['createdAt'] is Timestamp) map['bookCreatedAt'] = data['createdAt'];
-    if (data['updatedAt'] is Timestamp) map['bookUpdatedAt'] = data['updatedAt'];
+    if (data['createdAt'] is Timestamp)
+      map['bookCreatedAt'] = data['createdAt'];
+    if (data['updatedAt'] is Timestamp)
+      map['bookUpdatedAt'] = data['updatedAt'];
     return map;
   }
 
@@ -90,12 +101,17 @@ class BookDetailScreen extends StatelessWidget {
 
     if (id != null && id.isNotEmpty) {
       return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('books').doc(id).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('books')
+            .doc(id)
+            .snapshots(),
         builder: (context, snap) {
           if (snap.hasError) {
             return Scaffold(
               appBar: AppBar(title: Text(t.bookDetailTitle)),
-              body: Center(child: Text(t.genericErrorWithMessage('${snap.error}'))),
+              body: Center(
+                child: Text(t.genericErrorWithMessage('${snap.error}')),
+              ),
             );
           }
           if (!snap.hasData) {
@@ -135,9 +151,12 @@ class _BookDetailBody extends StatelessWidget {
     final author = bookMap['author'] as String? ?? '—';
     final category = bookMap['category'] as String? ?? '—';
     final isbn = bookMap['isbn'] as String? ?? '—';
-    final quantity = bookMap['quantity'] is int ? bookMap['quantity'] as int : int.tryParse('${bookMap['quantity']}') ?? 0;
-    final available =
-        bookMap['available'] is int ? bookMap['available'] as int : int.tryParse('${bookMap['available']}') ?? 0;
+    final quantity = bookMap['quantity'] is int
+        ? bookMap['quantity'] as int
+        : int.tryParse('${bookMap['quantity']}') ?? 0;
+    final available = bookMap['available'] is int
+        ? bookMap['available'] as int
+        : int.tryParse('${bookMap['available']}') ?? 0;
     final description = (bookMap['description'] as String?)?.trim() ?? '';
     final staff = AppUser.isStaff;
     final imageUrl = (bookMap['imageUrl'] as String?)?.trim() ?? '';
@@ -167,7 +186,11 @@ class _BookDetailBody extends StatelessWidget {
           if (staff)
             IconButton(
               icon: const Icon(Icons.edit),
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.editBook, arguments: bookMap),
+              onPressed: () => Navigator.pushNamed(
+                context,
+                AppRoutes.editBook,
+                arguments: bookMap,
+              ),
             ),
           if (staff)
             IconButton(
@@ -203,21 +226,37 @@ class _BookDetailBody extends StatelessWidget {
                       imageRef: imageUrl,
                       width: 140,
                       height: 200,
-                      placeholder: const Icon(Icons.menu_book, size: 80, color: AppColors.primary),
+                      placeholder: const Icon(
+                        Icons.menu_book,
+                        size: 80,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(title, style: AppTextStyles.h1, textAlign: TextAlign.center),
+                  Text(
+                    title,
+                    style: AppTextStyles.h1,
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 8),
                   Text(t.bookAuthorPrefix(author), style: AppTextStyles.body),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text(category, style: AppTextStyles.caption.copyWith(color: AppColors.primary)),
+                    child: Text(
+                      category,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -228,9 +267,18 @@ class _BookDetailBody extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    _InfoRow(label: t.bookDetailTotalQuantity, value: '$quantity', icon: Icons.inventory),
+                    _InfoRow(
+                      label: t.bookDetailTotalQuantity,
+                      value: '$quantity',
+                      icon: Icons.inventory,
+                    ),
                     const Divider(),
-                    _InfoRow(label: t.bookDetailAvailable, value: '$available', icon: Icons.check_circle, valueColor: AppColors.success),
+                    _InfoRow(
+                      label: t.bookDetailAvailable,
+                      value: '$available',
+                      icon: Icons.check_circle,
+                      valueColor: AppColors.success,
+                    ),
                     const Divider(),
                     _InfoRow(
                       label: t.bookDetailOnLoan,
@@ -252,7 +300,11 @@ class _BookDetailBody extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.qr_code_2, size: 20, color: AppColors.primary),
+                          Icon(
+                            Icons.qr_code_2,
+                            size: 20,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: 8),
                           Text(t.bookQrTitle, style: AppTextStyles.h3),
                         ],
@@ -284,7 +336,9 @@ class _BookDetailBody extends StatelessWidget {
                       const SizedBox(height: 8),
                       Center(
                         child: Text(
-                          t.bookDetailQrScanHint,
+                          staff
+                              ? t.bookDetailQrScanHint
+                              : t.bookDetailQrScanHintStudent,
                           style: AppTextStyles.caption,
                           textAlign: TextAlign.center,
                         ),
@@ -314,11 +368,25 @@ class _BookDetailBody extends StatelessWidget {
                   children: [
                     Text(t.bookInfoSection, style: AppTextStyles.h3),
                     const SizedBox(height: 12),
-                    _InfoTile(icon: Icons.tag, label: t.bookDetailIsbnTile, value: isbn.isEmpty ? t.bookDetailValueDash : isbn),
+                    _InfoTile(
+                      icon: Icons.tag,
+                      label: t.bookDetailIsbnTile,
+                      value: isbn.isEmpty ? t.bookDetailValueDash : isbn,
+                    ),
                     const SizedBox(height: 8),
-                    _InfoTile(icon: Icons.category, label: t.bookDetailCategoryTile, value: category.isEmpty ? t.bookDetailValueDash : category),
+                    _InfoTile(
+                      icon: Icons.category,
+                      label: t.bookDetailCategoryTile,
+                      value: category.isEmpty
+                          ? t.bookDetailValueDash
+                          : category,
+                    ),
                     const SizedBox(height: 8),
-                    _InfoTile(icon: Icons.person, label: t.bookDetailAuthorTile, value: author.isEmpty ? t.bookDetailValueDash : author),
+                    _InfoTile(
+                      icon: Icons.person,
+                      label: t.bookDetailAuthorTile,
+                      value: author.isEmpty ? t.bookDetailValueDash : author,
+                    ),
                     if (publishedYear != null) ...[
                       const SizedBox(height: 8),
                       _InfoTile(
@@ -345,7 +413,9 @@ class _BookDetailBody extends StatelessWidget {
                     _InfoTile(
                       icon: Icons.verified_user_outlined,
                       label: t.bookDetailBorrowableTile,
-                      value: isBorrowable ? t.bookDetailBorrowableYes : t.bookDetailBorrowableNo,
+                      value: isBorrowable
+                          ? t.bookDetailBorrowableYes
+                          : t.bookDetailBorrowableNo,
                     ),
                     const SizedBox(height: 8),
                     _InfoTile(
@@ -355,11 +425,19 @@ class _BookDetailBody extends StatelessWidget {
                     ),
                     if (createdStr.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _InfoTile(icon: Icons.event_available_outlined, label: t.bookDetailCreatedAtTile, value: createdStr),
+                      _InfoTile(
+                        icon: Icons.event_available_outlined,
+                        label: t.bookDetailCreatedAtTile,
+                        value: createdStr,
+                      ),
                     ],
                     if (updatedStr.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _InfoTile(icon: Icons.update, label: t.bookDetailUpdatedAtTile, value: updatedStr),
+                      _InfoTile(
+                        icon: Icons.update,
+                        label: t.bookDetailUpdatedAtTile,
+                        value: updatedStr,
+                      ),
                     ],
                   ],
                 ),
@@ -382,6 +460,28 @@ class _BookDetailBody extends StatelessWidget {
                 ),
               ),
             ),
+            if (id != null && id.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              StreamBuilder<Map<String, bool>>(
+                stream: FeatureFlagsService.watchFlags(),
+                builder: (context, snap) {
+                  final flags = snap.data;
+                  final enabled = FeatureFlagsService.flag(
+                    flags,
+                    FeatureFlagsService.aiRecommendationsEnabled,
+                  );
+                  if (!enabled) return const SizedBox.shrink();
+                  return Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: BookSimilarRecommendationsSection(
+                        currentBookId: id,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
             const SizedBox(height: 24),
           ],
         ),
@@ -406,22 +506,27 @@ class _BookDetailBody extends StatelessWidget {
           height: 84,
           child: Row(
             children: [
-              Expanded(
-                child: _BottomActionItem(
-                  icon: Icons.download,
-                  label: t.bookDetailActionCreateBorrow,
-                  onTap: id == null || id.isEmpty
-                      ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(t.bookMissingIdCannotBorrow)),
-                          );
-                        }
-                      : () => AppRoutes.openBorrowCreate(
+              // Tạo phiếu mượn chỉ dành cho thủ thư / quản lý — sinh viên mượn qua luồng khác (ví dụ quét QR ở tab Quét).
+              if (staff)
+                Expanded(
+                  child: _BottomActionItem(
+                    key: const Key('borrow_book_button'),
+                    icon: Icons.download,
+                    label: t.bookDetailActionCreateBorrow,
+                    onTap: id == null || id.isEmpty
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(t.bookMissingIdCannotBorrow),
+                              ),
+                            );
+                          }
+                        : () => AppRoutes.openBorrowCreate(
                             context,
                             arguments: {'bookId': id},
                           ),
+                  ),
                 ),
-              ),
               Expanded(
                 child: _BottomActionItem(
                   icon: Icons.share,
@@ -438,7 +543,11 @@ class _BookDetailBody extends StatelessWidget {
                   child: _BottomActionItem(
                     icon: Icons.edit,
                     label: t.editAction,
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.editBook, arguments: bookMap),
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.editBook,
+                      arguments: bookMap,
+                    ),
                   ),
                 ),
               Expanded(
@@ -477,13 +586,19 @@ class _BookDetailBody extends StatelessWidget {
         title: Text(t.deleteConfirmTitle),
         content: Text(t.deleteConfirmBookBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t.commonCancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.commonCancel),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await FirebaseFirestore.instance.collection('books').doc(bookId).delete();
+                await FirebaseFirestore.instance
+                    .collection('books')
+                    .doc(bookId)
+                    .delete();
                 if (context.mounted) {
                   AppRoutes.finishBookDeletionAndOpenBookList(
                     context,
@@ -517,17 +632,28 @@ class _BookDetailGenreTile extends StatelessWidget {
     final t = AppLocalizations.of(context)!;
     final id = genreId?.trim();
     if (id == null || id.isEmpty) {
-      return _InfoTile(icon: Icons.label_outline, label: t.bookDetailGenreTile, value: t.bookDetailValueDash);
+      return _InfoTile(
+        icon: Icons.label_outline,
+        label: t.bookDetailGenreTile,
+        value: t.bookDetailValueDash,
+      );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('genres').doc(id).snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('genres')
+          .doc(id)
+          .snapshots(),
       builder: (context, snap) {
         var value = t.bookDetailValueDash;
         if (snap.hasData && snap.data!.exists) {
           final n = snap.data!.data()?['name'];
           if (n != null && '$n'.trim().isNotEmpty) value = '$n'.trim();
         }
-        return _InfoTile(icon: Icons.label_outline, label: t.bookDetailGenreTile, value: value);
+        return _InfoTile(
+          icon: Icons.label_outline,
+          label: t.bookDetailGenreTile,
+          value: value,
+        );
       },
     );
   }
@@ -540,6 +666,7 @@ class _BottomActionItem extends StatelessWidget {
   final Color? iconColor;
 
   const _BottomActionItem({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
@@ -580,7 +707,12 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final Color? valueColor;
 
-  const _InfoRow({required this.label, required this.value, required this.icon, this.valueColor});
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -600,7 +732,11 @@ class _InfoTile extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoTile({required this.icon, required this.label, required this.value});
+  const _InfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {

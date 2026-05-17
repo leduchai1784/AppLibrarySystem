@@ -27,7 +27,10 @@ class _BookCoverFromBookIdState extends State<BookCoverFromBookId> {
 
   Future<DocumentSnapshot<Map<String, dynamic>>>? _loadFuture() {
     if (widget.bookId.isEmpty) return null;
-    return FirebaseFirestore.instance.collection('books').doc(widget.bookId).get();
+    return FirebaseFirestore.instance
+        .collection('books')
+        .doc(widget.bookId)
+        .get();
   }
 
   @override

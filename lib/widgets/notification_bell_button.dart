@@ -21,7 +21,9 @@ class NotificationBellButton extends StatelessWidget {
       );
     }
 
-    Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection('notifications');
+    Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection(
+      'notifications',
+    );
     if (!AppUser.isStaff) {
       q = q.where('userId', isEqualTo: uid);
     }
@@ -44,12 +46,18 @@ class NotificationBellButton extends StatelessWidget {
                   right: 2,
                   top: 2,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
                     decoration: const BoxDecoration(
                       color: AppColors.error,
                       shape: BoxShape.circle,
                     ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
                     alignment: Alignment.center,
                     child: Text(
                       label,

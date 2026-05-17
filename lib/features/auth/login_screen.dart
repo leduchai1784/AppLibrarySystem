@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_text_styles.dart';
+import '../../core/guards/session_block_reason.dart';
 import '../../core/routes/app_routes.dart';
 import '../../gen/l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
@@ -40,14 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final t = AppLocalizations.of(context)!;
       if (widget.showWebStaffDeniedMessage) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.loginSnackWebStaffOnly)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.loginSnackWebStaffOnly)));
       }
       if (widget.showAdminUseWebMessage) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.loginSnackAdminWebOnly)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.loginSnackAdminWebOnly)));
       }
     });
   }
@@ -68,9 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.enterEmailPassword)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.enterEmailPassword)));
       }
       return;
     }
@@ -87,28 +88,26 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user != null && !user.emailVerified) {
         await FirebaseAuth.instance.signOut();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(t.verifyEmailBeforeLogin)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(t.verifyEmailBeforeLogin)));
         }
         return;
       }
 
       if (!mounted) return;
 
-      if (await AuthService.rejectWebSessionIfNotStaff()) {
+      final platformBlock = await AuthService.signOutIfPlatformAccessDenied();
+      if (platformBlock != null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.loginSnackWebStaffOnly)),
-        );
-        return;
-      }
-
-      if (await AuthService.rejectMobileSessionIfAdmin()) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.loginSnackAdminWebOnly)),
-        );
+        final message = switch (platformBlock) {
+          SessionBlockReason.webRequiresStaff => t.loginSnackWebStaffOnly,
+          SessionBlockReason.mobileAdminRequiresWeb => t.loginSnackAdminWebOnly,
+          SessionBlockReason.emailNotVerified => t.verifyEmailBeforeLogin,
+        };
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
         return;
       }
 
@@ -134,9 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
           message = t.authErrUserDisabled;
           break;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (mounted) {
         final t = AppLocalizations.of(context)!;
@@ -165,21 +164,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      if (await AuthService.rejectWebSessionIfNotStaff()) {
+      final platformBlock = await AuthService.signOutIfPlatformAccessDenied();
+      if (platformBlock != null) {
         if (!mounted) return;
         final t = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.loginSnackGoogleWebStaffOnly)),
-        );
-        return;
-      }
-
-      if (await AuthService.rejectMobileSessionIfAdmin()) {
-        if (!mounted) return;
-        final t = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.loginSnackAdminWebOnly)),
-        );
+        final message = switch (platformBlock) {
+          SessionBlockReason.webRequiresStaff => t.loginSnackGoogleWebStaffOnly,
+          SessionBlockReason.mobileAdminRequiresWeb => t.loginSnackAdminWebOnly,
+          SessionBlockReason.emailNotVerified => t.verifyEmailBeforeLogin,
+        };
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
         return;
       }
 
@@ -192,9 +188,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (e.code == 'network-request-failed') {
         message = t.authErrNetwork;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (mounted) {
         final t = AppLocalizations.of(context)!;
@@ -213,17 +209,24 @@ class _LoginScreenState extends State<LoginScreen> {
     final viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
     final inputTheme = InputDecorationTheme(
       filled: true,
-      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.55,
+      ),
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
+        borderSide: BorderSide(
+          color: theme.dividerColor.withValues(alpha: 0.4),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.85), width: 1.5),
+        borderSide: BorderSide(
+          color: theme.colorScheme.primary.withValues(alpha: 0.85),
+          width: 1.5,
+        ),
       ),
       hintStyle: TextStyle(fontSize: 14, color: theme.hintColor),
     );
@@ -265,10 +268,12 @@ class _LoginScreenState extends State<LoginScreen> {
             color: theme.colorScheme.primary.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            Icons.local_library_rounded,
-            size: 28,
-            color: theme.colorScheme.primary,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: Image.asset('logolibrarysystem.png', fit: BoxFit.cover),
+            ),
           ),
         ),
         Positioned(
@@ -314,188 +319,199 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(height: 3, color: theme.colorScheme.primary),
-          Material(
-            color: theme.colorScheme.surface,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(child: _buildHeader(context)),
-                  const SizedBox(height: 10),
-                  Text(
-                    t.loginTitle,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 22,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    kIsWeb ? t.loginSubtitleWeb : t.loginSubtitleMobile,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _emailController,
-                    focusNode: _emailFocus,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    onSubmitted: (_) {
-                      FocusScope.of(context).requestFocus(_passwordFocus);
-                    },
-                    style: const TextStyle(fontSize: 15),
-                    decoration: InputDecoration(
-                      labelText: t.emailLabel,
-                      prefixIcon: Icon(
-                        Icons.mail_outline_rounded,
-                        size: 20,
-                        color: theme.colorScheme.primary,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(height: 3, color: theme.colorScheme.primary),
+            Material(
+              color: theme.colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(child: _buildHeader(context)),
+                    const SizedBox(height: 10),
+                    Text(
+                      t.loginTitle,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        height: 1.15,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _passwordController,
-                    focusNode: _passwordFocus,
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) {
-                      if (!_isLoading) _onLogin();
-                    },
-                    style: const TextStyle(fontSize: 15),
-                    decoration: InputDecoration(
-                      labelText: t.passwordLabel,
-                      prefixIcon: Icon(
-                        Icons.lock_outline_rounded,
-                        size: 20,
-                        color: theme.colorScheme.primary,
+                    const SizedBox(height: 4),
+                    Text(
+                      kIsWeb ? t.loginSubtitleWeb : t.loginSubtitleMobile,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 13,
+                        height: 1.35,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      key: const Key('login_email_field'),
+                      controller: _emailController,
+                      focusNode: _emailFocus,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) {
+                        FocusScope.of(context).requestFocus(_passwordFocus);
+                      },
+                      style: const TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: t.emailLabel,
+                        prefixIcon: Icon(
+                          Icons.mail_outline_rounded,
                           size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: _goToForgotPassword,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      child: Text(
-                        t.forgotPasswordTitle,
-                        style: TextStyle(
                           color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
                         ),
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    height: 44,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _onLogin,
-                      style: ElevatedButton.styleFrom(
-                        elevation: 0,
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 10),
+                    TextField(
+                      key: const Key('login_password_field'),
+                      controller: _passwordController,
+                      focusNode: _passwordFocus,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) {
+                        if (!_isLoading) _onLogin();
+                      },
+                      style: const TextStyle(fontSize: 15),
+                      decoration: InputDecoration(
+                        labelText: t.passwordLabel,
+                        prefixIcon: Icon(
+                          Icons.lock_outline_rounded,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
                         ),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  t.loginTitle.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 14,
-                                    letterSpacing: 0.3,
+                    ),
+
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _goToForgotPassword,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 0),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        child: Text(
+                          t.forgotPasswordTitle,
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 44,
+                      child: ElevatedButton(
+                        key: const Key('login_button'),
+                        onPressed: _isLoading ? null : _onLogin,
+                        style: ElevatedButton.styleFrom(
+                          elevation: 0,
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.arrow_forward_rounded, size: 18),
-                              ],
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  _buildOrDivider(context),
-                  const SizedBox(height: 12),
-
-                  SizedBox(
-                    height: 44,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _onLoginWithGoogle,
-                      icon: Icon(
-                        Icons.g_mobiledata_rounded,
-                        size: 22,
-                        color: theme.colorScheme.primary,
-                      ),
-                      label: Text(t.signInWithGoogle, style: const TextStyle(fontSize: 14)),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(
-                          color: theme.dividerColor.withValues(alpha: 0.45),
-                        ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    t.loginTitle.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
-                  ),
-
-                  if (!kIsWeb) ...[
                     const SizedBox(height: 12),
-                    Center(child: _buildRegisterText(context)),
+
+                    _buildOrDivider(context),
+                    const SizedBox(height: 12),
+
+                    SizedBox(
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _onLoginWithGoogle,
+                        icon: Icon(
+                          Icons.g_mobiledata_rounded,
+                          size: 22,
+                          color: theme.colorScheme.primary,
+                        ),
+                        label: Text(
+                          t.signInWithGoogle,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(
+                            color: theme.dividerColor.withValues(alpha: 0.45),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    if (!kIsWeb) ...[
+                      const SizedBox(height: 12),
+                      Center(child: _buildRegisterText(context)),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -506,24 +522,11 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Expanded(
-          child: Container(
-            height: 1,
-            color: theme.dividerColor,
-          ),
-        ),
+        Expanded(child: Container(height: 1, color: theme.dividerColor)),
         const SizedBox(width: 8),
-        Text(
-          t.commonOr,
-          style: theme.textTheme.bodySmall,
-        ),
+        Text(t.commonOr, style: theme.textTheme.bodySmall),
         const SizedBox(width: 8),
-        Expanded(
-          child: Container(
-            height: 1,
-            color: theme.dividerColor,
-          ),
-        ),
+        Expanded(child: Container(height: 1, color: theme.dividerColor)),
       ],
     );
   }
@@ -550,4 +553,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

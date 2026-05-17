@@ -184,7 +184,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get systemFeaturesAiRecommendationsHint =>
-      'Enable/disable AI suggestions section on Home.';
+      'Enable/disable the suggestions section on Home.';
 
   @override
   String get systemFeaturesStatistics => 'Statistics';
@@ -313,6 +313,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get quickHistoryTab => 'History';
+
+  @override
+  String get recommendationsTitle => 'Suggested for you';
+
+  @override
+  String get recommendationsEmpty =>
+      'No suggestions yet. Please try again later.';
+
+  @override
+  String get recommendationsLoadFailedTitle => 'Could not load suggestions';
+
+  @override
+  String get recommendationsLoadFailedHint =>
+      'Check Wi‑Fi, the FastAPI URL under loan rules & limits, default route GET …/recommend/me, Firebase Bearer, and that the API server is running.';
+
+  @override
+  String recommendationsLoadFailedHttp(String status) {
+    return 'Server returned HTTP $status.';
+  }
+
+  @override
+  String get recommendationsLoadFailedTimeout =>
+      'Connection timed out. Try again.';
+
+  @override
+  String get recommendationsLoadFailedParse =>
+      'Server response was not valid JSON.';
+
+  @override
+  String get recommendationsLoadFailedUnknown => 'An unknown error occurred.';
+
+  @override
+  String get bookSimilarRecommendationsTitle => 'Similar books';
+
+  @override
+  String get bookSimilarRecommendationsEmpty =>
+      'No similar books for this title yet.';
+
+  @override
+  String get bookSimilarRecommendationsLoadFailedTitle =>
+      'Could not load similar books';
+
+  @override
+  String get bookSimilarRecommendationsLoadFailedHint =>
+      'Check the GET …/recommend?book_id=… route on FastAPI, Firebase Bearer, and the library settings URL.';
+
+  @override
+  String get refresh => 'Refresh';
 
   @override
   String get recentBorrowsTitle => 'Recent borrows';
@@ -456,6 +504,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get borrowDateLabelShort => 'Borrow date';
+
+  @override
+  String get returnDateLabelShort => 'Actual return date';
 
   @override
   String get dueDateLabelShort => 'Due date';
@@ -954,6 +1005,80 @@ class AppLocalizationsEn extends AppLocalizations {
       'Long-press a book to select multiple, then tap to add or remove.';
 
   @override
+  String bookListBulkReplaceCover(Object count) {
+    return 'Set cover ($count)';
+  }
+
+  @override
+  String bookListBulkReplaceCoverConfirm(Object count) {
+    return 'Pick one image to use as cover for $count selected books?';
+  }
+
+  @override
+  String bookListBulkReplaceCoverDone(Object count) {
+    return 'Updated cover for $count book(s).';
+  }
+
+  @override
+  String bookListBulkReplaceCoverError(Object message) {
+    return 'Bulk cover failed: $message';
+  }
+
+  @override
+  String get bookListBulkReplaceCoverPerBook => 'Per-book covers';
+
+  @override
+  String get bookListBulkReplaceCoverPerBookTitle =>
+      'Set cover per selected book';
+
+  @override
+  String get bookListBulkReplaceCoverPerBookHint =>
+      'Pick a different image for each selected book. Each pick uploads to Cloudinary then updates that book.';
+
+  @override
+  String get bookListBulkReplaceCoverPick => 'Pick image';
+
+  @override
+  String get bookListBulkReplaceCoverPicked => 'Cover updated';
+
+  @override
+  String get bulkSelectMultipleTooltip => 'Select multiple for bulk actions';
+
+  @override
+  String get bulkSelectItemsHint =>
+      'Long-press an item to select multiple, then tap to toggle.';
+
+  @override
+  String authorsBulkDeleteConfirm(Object count) {
+    return 'Delete $count authors? Books referencing them are not deleted.';
+  }
+
+  @override
+  String authorsBulkDeleteResult(Object deleted) {
+    return 'Deleted $deleted author(s).';
+  }
+
+  @override
+  String genresBulkDeleteConfirm(Object count) {
+    return 'Delete $count genres?';
+  }
+
+  @override
+  String genresBulkDeleteResult(Object deleted) {
+    return 'Deleted $deleted genre(s).';
+  }
+
+  @override
+  String categoriesBulkDeleteConfirm(Object count) {
+    return 'Delete up to $count categories with no books? Categories still in use will be skipped.';
+  }
+
+  @override
+  String categoriesBulkDeleteResult(Object deleted, Object skipped) {
+    return 'Deleted $deleted. Skipped (has books): $skipped.';
+  }
+
+  @override
   String get addBook => 'Add book';
 
   @override
@@ -1128,6 +1253,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get finePaymentTitle => 'Fine payment';
+
+  @override
+  String get finePaymentEmptyList =>
+      'No unpaid fines (late tickets with fineAmount > 0 and not marked finePaid).';
+
+  @override
+  String get finePaymentRecorded => 'Fine payment recorded.';
+
+  @override
+  String get finePaymentMarkPaid => 'Collect fine';
+
+  @override
+  String get finePaymentStaffOnly =>
+      'Only staff (manager / admin) can record fine payments.';
+
+  @override
+  String get finePaymentConfirmTitle => 'Confirm fine collection';
+
+  @override
+  String finePaymentConfirmBody(Object amount, Object ticket, Object method) {
+    return 'Collect $amount VND — ticket $ticket — $method?';
+  }
 
   @override
   String get totalFineLabel => 'Total fine';
@@ -1333,6 +1480,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manageBorrowHistory => 'Borrow history';
+
+  @override
+  String get manageFinePayment => 'Fine payment';
 
   @override
   String get manageCategoryManage => 'Manage categories';
@@ -1988,7 +2138,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get excelImportFormatHint =>
-      '.xlsx file — row 1 is the header. Required: book title and author (e.g. title, author). Optional: category (demo group), genre / thể loại (links to genres), genre id, published year, isbn, quantity, description.';
+      '.xlsx file — row 1 is the header. Required: book title and author (e.g. title, author). Optional: category (demo group), genre / thể loại (links to genres), genre id, published year, isbn, quantity, description, cover image URL (https://…) — column e.g. image_url / cover url.';
 
   @override
   String get bookQuantityLabel => 'Quantity';
@@ -2014,6 +2164,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bookDetailQrScanHint =>
       'Scan the code to look up the book or create a borrow record';
+
+  @override
+  String get bookDetailQrScanHintStudent =>
+      'Scan the code to look up this book.';
 
   @override
   String get bookDetailIsbnTile => 'ISBN';
@@ -2579,6 +2733,70 @@ class AppLocalizationsEn extends AppLocalizations {
       'A user cannot borrow another book if they already have this many active loans.';
 
   @override
+  String get libraryConfigFastApiBaseUrlLabel =>
+      'FastAPI base URL (recommendations)';
+
+  @override
+  String get libraryConfigFastApiBaseUrlHelper =>
+      'Example: http://10.10.10.165:8000 (real device) or https://api.example.com. Do not use 10.0.2.2 on real devices.';
+
+  @override
+  String get libraryConfigFastApiBaseUrlInvalid =>
+      'Invalid base URL. Must be in the form http(s)://host:port';
+
+  @override
+  String get libraryConfigFastApiRecommendationsPathLabel =>
+      'Recommendations API path (after base URL)';
+
+  @override
+  String get libraryConfigFastApiRecommendationsPathHelper =>
+      'App default: recommend/me → GET …/recommend/me?top_k=… (Firebase Bearer). Leave empty to use the default.';
+
+  @override
+  String get libraryConfigFastApiRecommendationsPathInvalid =>
+      'The recommendations path must not be a full URL (only the part after the host, e.g. api/v1/recommendations).';
+
+  @override
+  String get libraryConfigFastApiRecommendationsTopKLabel =>
+      'Number of suggestions (top_k)';
+
+  @override
+  String get libraryConfigFastApiRecommendationsTopKHelper =>
+      'Sent to FastAPI as top_k (1–50). Leave empty for 10.';
+
+  @override
+  String get libraryConfigFastApiRecommendationsTopKInvalid =>
+      'top_k must be a number from 1 to 50.';
+
+  @override
+  String get libraryConfigFastApiDevUidLabel =>
+      'X-Dev-Uid (optional, dev only)';
+
+  @override
+  String get libraryConfigFastApiDevUidHelper =>
+      'When FastAPI has DEV_AUTH_BYPASS enabled, enter an Auth UID to send the X-Dev-Uid header. Leave empty in production.';
+
+  @override
+  String get libraryConfigFastApiBookRecommendPathLabel =>
+      'Book-based recommend API path (GET …?book_id=)';
+
+  @override
+  String get libraryConfigFastApiBookRecommendPathHelper =>
+      'Default: recommend → GET …/recommend?book_id=…&top_k=…';
+
+  @override
+  String get libraryConfigFastApiBookRecommendTopKLabel =>
+      'top_k (book-based recommendations)';
+
+  @override
+  String get libraryConfigFastApiBookRecommendTopKHelper =>
+      '1–50, default 5. Leave empty for 5.';
+
+  @override
+  String get libraryConfigFastApiBookRecommendTopKInvalid =>
+      'Book-based top_k must be between 1 and 50.';
+
+  @override
   String get libraryConfigSave => 'Save configuration';
 
   @override
@@ -3051,6 +3269,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get excelSampleColDescription => 'Description';
+
+  @override
+  String get excelSampleColImageUrl => 'Cover image URL';
 
   @override
   String get excelTemplateFileName => 'book_import_sample_5rows.xlsx';

@@ -23,12 +23,13 @@ class FeatureFlagsService {
   static const String aiRecommendationsEnabled = 'aiRecommendationsEnabled';
   static const String statisticsEnabled = 'statisticsEnabled';
 
-  static Map<String, bool> defaults() => const <String, bool>{
-        scanEnabled: true,
-        borrowReturnEnabled: true,
-        aiRecommendationsEnabled: true,
-        statisticsEnabled: true,
-      };
+  /// Trả về map **mutable** (không dùng const) vì callers sẽ merge từ Firestore.
+  static Map<String, bool> defaults() => <String, bool>{
+    scanEnabled: true,
+    borrowReturnEnabled: true,
+    aiRecommendationsEnabled: true,
+    statisticsEnabled: true,
+  };
 
   static Stream<Map<String, bool>> watchFlags() {
     return LibraryConfigService.configRef.snapshots().map((snap) {
@@ -55,13 +56,9 @@ class FeatureFlagsService {
   }
 
   static Future<void> saveFlags(Map<String, bool> flags) async {
-    await LibraryConfigService.configRef.set(
-      <String, dynamic>{
-        _featuresKey: flags,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await LibraryConfigService.configRef.set(<String, dynamic>{
+      _featuresKey: flags,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }
-

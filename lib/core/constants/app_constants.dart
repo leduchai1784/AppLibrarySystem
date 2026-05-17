@@ -1,10 +1,6 @@
 /// Vai trò người dùng trong hệ thống thư viện
 /// Giá trị lưu Firestore `users.role`: `admin` | `manager` | `student`
-enum UserRole {
-  admin,
-  manager,
-  student,
-}
+enum UserRole { admin, manager, student }
 
 /// Giá trị `category` mặc định trên Firestore khi không gán (đồng bộ với thống kê / lọc).
 const String kDefaultBookCategory = 'Khác';

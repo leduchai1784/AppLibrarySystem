@@ -13,7 +13,8 @@ class Book {
 
   factory Book.fromMap(String id, Map<String, dynamic> data) {
     final quantity = (data['quantity'] ?? 0) as int;
-    final available = (data['availableQuantity'] ?? data['available'] ?? quantity) as int;
+    final available =
+        (data['availableQuantity'] ?? data['available'] ?? quantity) as int;
     return Book(
       id: id,
       title: (data['title'] ?? '') as String,
@@ -22,4 +23,3 @@ class Book {
     );
   }
 }
-

@@ -437,7 +437,7 @@ abstract class AppLocalizations {
   /// No description provided for @systemFeaturesAiRecommendationsHint.
   ///
   /// In en, this message translates to:
-  /// **'Enable/disable AI suggestions section on Home.'**
+  /// **'Enable/disable the suggestions section on Home.'**
   String get systemFeaturesAiRecommendationsHint;
 
   /// No description provided for @systemFeaturesStatistics.
@@ -667,6 +667,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'History'**
   String get quickHistoryTab;
+
+  /// No description provided for @recommendationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested for you'**
+  String get recommendationsTitle;
+
+  /// No description provided for @recommendationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No suggestions yet. Please try again later.'**
+  String get recommendationsEmpty;
+
+  /// No description provided for @recommendationsLoadFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load suggestions'**
+  String get recommendationsLoadFailedTitle;
+
+  /// No description provided for @recommendationsLoadFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Check Wi‑Fi, the FastAPI URL under loan rules & limits, default route GET …/recommend/me, Firebase Bearer, and that the API server is running.'**
+  String get recommendationsLoadFailedHint;
+
+  /// No description provided for @recommendationsLoadFailedHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'Server returned HTTP {status}.'**
+  String recommendationsLoadFailedHttp(String status);
+
+  /// No description provided for @recommendationsLoadFailedTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out. Try again.'**
+  String get recommendationsLoadFailedTimeout;
+
+  /// No description provided for @recommendationsLoadFailedParse.
+  ///
+  /// In en, this message translates to:
+  /// **'Server response was not valid JSON.'**
+  String get recommendationsLoadFailedParse;
+
+  /// No description provided for @recommendationsLoadFailedUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'An unknown error occurred.'**
+  String get recommendationsLoadFailedUnknown;
+
+  /// No description provided for @bookSimilarRecommendationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Similar books'**
+  String get bookSimilarRecommendationsTitle;
+
+  /// No description provided for @bookSimilarRecommendationsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No similar books for this title yet.'**
+  String get bookSimilarRecommendationsEmpty;
+
+  /// No description provided for @bookSimilarRecommendationsLoadFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load similar books'**
+  String get bookSimilarRecommendationsLoadFailedTitle;
+
+  /// No description provided for @bookSimilarRecommendationsLoadFailedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the GET …/recommend?book_id=… route on FastAPI, Firebase Bearer, and the library settings URL.'**
+  String get bookSimilarRecommendationsLoadFailedHint;
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
 
   /// No description provided for @recentBorrowsTitle.
   ///
@@ -931,6 +1009,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Borrow date'**
   String get borrowDateLabelShort;
+
+  /// No description provided for @returnDateLabelShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual return date'**
+  String get returnDateLabelShort;
 
   /// No description provided for @dueDateLabelShort.
   ///
@@ -1808,6 +1892,108 @@ abstract class AppLocalizations {
   /// **'Long-press a book to select multiple, then tap to add or remove.'**
   String get bookListLongPressHint;
 
+  /// No description provided for @bookListBulkReplaceCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Set cover ({count})'**
+  String bookListBulkReplaceCover(Object count);
+
+  /// No description provided for @bookListBulkReplaceCoverConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick one image to use as cover for {count} selected books?'**
+  String bookListBulkReplaceCoverConfirm(Object count);
+
+  /// No description provided for @bookListBulkReplaceCoverDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated cover for {count} book(s).'**
+  String bookListBulkReplaceCoverDone(Object count);
+
+  /// No description provided for @bookListBulkReplaceCoverError.
+  ///
+  /// In en, this message translates to:
+  /// **'Bulk cover failed: {message}'**
+  String bookListBulkReplaceCoverError(Object message);
+
+  /// No description provided for @bookListBulkReplaceCoverPerBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Per-book covers'**
+  String get bookListBulkReplaceCoverPerBook;
+
+  /// No description provided for @bookListBulkReplaceCoverPerBookTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set cover per selected book'**
+  String get bookListBulkReplaceCoverPerBookTitle;
+
+  /// No description provided for @bookListBulkReplaceCoverPerBookHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a different image for each selected book. Each pick uploads to Cloudinary then updates that book.'**
+  String get bookListBulkReplaceCoverPerBookHint;
+
+  /// No description provided for @bookListBulkReplaceCoverPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick image'**
+  String get bookListBulkReplaceCoverPick;
+
+  /// No description provided for @bookListBulkReplaceCoverPicked.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover updated'**
+  String get bookListBulkReplaceCoverPicked;
+
+  /// No description provided for @bulkSelectMultipleTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Select multiple for bulk actions'**
+  String get bulkSelectMultipleTooltip;
+
+  /// No description provided for @bulkSelectItemsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press an item to select multiple, then tap to toggle.'**
+  String get bulkSelectItemsHint;
+
+  /// No description provided for @authorsBulkDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} authors? Books referencing them are not deleted.'**
+  String authorsBulkDeleteConfirm(Object count);
+
+  /// No description provided for @authorsBulkDeleteResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {deleted} author(s).'**
+  String authorsBulkDeleteResult(Object deleted);
+
+  /// No description provided for @genresBulkDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} genres?'**
+  String genresBulkDeleteConfirm(Object count);
+
+  /// No description provided for @genresBulkDeleteResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {deleted} genre(s).'**
+  String genresBulkDeleteResult(Object deleted);
+
+  /// No description provided for @categoriesBulkDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete up to {count} categories with no books? Categories still in use will be skipped.'**
+  String categoriesBulkDeleteConfirm(Object count);
+
+  /// No description provided for @categoriesBulkDeleteResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {deleted}. Skipped (has books): {skipped}.'**
+  String categoriesBulkDeleteResult(Object deleted, Object skipped);
+
   /// No description provided for @addBook.
   ///
   /// In en, this message translates to:
@@ -2119,6 +2305,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fine payment'**
   String get finePaymentTitle;
+
+  /// No description provided for @finePaymentEmptyList.
+  ///
+  /// In en, this message translates to:
+  /// **'No unpaid fines (late tickets with fineAmount > 0 and not marked finePaid).'**
+  String get finePaymentEmptyList;
+
+  /// No description provided for @finePaymentRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Fine payment recorded.'**
+  String get finePaymentRecorded;
+
+  /// No description provided for @finePaymentMarkPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Collect fine'**
+  String get finePaymentMarkPaid;
+
+  /// No description provided for @finePaymentStaffOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only staff (manager / admin) can record fine payments.'**
+  String get finePaymentStaffOnly;
+
+  /// No description provided for @finePaymentConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm fine collection'**
+  String get finePaymentConfirmTitle;
+
+  /// No description provided for @finePaymentConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Collect {amount} VND — ticket {ticket} — {method}?'**
+  String finePaymentConfirmBody(Object amount, Object ticket, Object method);
 
   /// No description provided for @totalFineLabel.
   ///
@@ -2479,6 +2701,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Borrow history'**
   String get manageBorrowHistory;
+
+  /// No description provided for @manageFinePayment.
+  ///
+  /// In en, this message translates to:
+  /// **'Fine payment'**
+  String get manageFinePayment;
 
   /// No description provided for @manageCategoryManage.
   ///
@@ -3671,7 +3899,7 @@ abstract class AppLocalizations {
   /// No description provided for @excelImportFormatHint.
   ///
   /// In en, this message translates to:
-  /// **'.xlsx file — row 1 is the header. Required: book title and author (e.g. title, author). Optional: category (demo group), genre / thể loại (links to genres), genre id, published year, isbn, quantity, description.'**
+  /// **'.xlsx file — row 1 is the header. Required: book title and author (e.g. title, author). Optional: category (demo group), genre / thể loại (links to genres), genre id, published year, isbn, quantity, description, cover image URL (https://…) — column e.g. image_url / cover url.'**
   String get excelImportFormatHint;
 
   /// No description provided for @bookQuantityLabel.
@@ -3721,6 +3949,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scan the code to look up the book or create a borrow record'**
   String get bookDetailQrScanHint;
+
+  /// No description provided for @bookDetailQrScanHintStudent.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the code to look up this book.'**
+  String get bookDetailQrScanHintStudent;
 
   /// No description provided for @bookDetailIsbnTile.
   ///
@@ -4725,6 +4959,102 @@ abstract class AppLocalizations {
   /// **'A user cannot borrow another book if they already have this many active loans.'**
   String get libraryConfigMaxBorrowsHelper;
 
+  /// No description provided for @libraryConfigFastApiBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'FastAPI base URL (recommendations)'**
+  String get libraryConfigFastApiBaseUrlLabel;
+
+  /// No description provided for @libraryConfigFastApiBaseUrlHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Example: http://10.10.10.165:8000 (real device) or https://api.example.com. Do not use 10.0.2.2 on real devices.'**
+  String get libraryConfigFastApiBaseUrlHelper;
+
+  /// No description provided for @libraryConfigFastApiBaseUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid base URL. Must be in the form http(s)://host:port'**
+  String get libraryConfigFastApiBaseUrlInvalid;
+
+  /// No description provided for @libraryConfigFastApiRecommendationsPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommendations API path (after base URL)'**
+  String get libraryConfigFastApiRecommendationsPathLabel;
+
+  /// No description provided for @libraryConfigFastApiRecommendationsPathHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'App default: recommend/me → GET …/recommend/me?top_k=… (Firebase Bearer). Leave empty to use the default.'**
+  String get libraryConfigFastApiRecommendationsPathHelper;
+
+  /// No description provided for @libraryConfigFastApiRecommendationsPathInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'The recommendations path must not be a full URL (only the part after the host, e.g. api/v1/recommendations).'**
+  String get libraryConfigFastApiRecommendationsPathInvalid;
+
+  /// No description provided for @libraryConfigFastApiRecommendationsTopKLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of suggestions (top_k)'**
+  String get libraryConfigFastApiRecommendationsTopKLabel;
+
+  /// No description provided for @libraryConfigFastApiRecommendationsTopKHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent to FastAPI as top_k (1–50). Leave empty for 10.'**
+  String get libraryConfigFastApiRecommendationsTopKHelper;
+
+  /// No description provided for @libraryConfigFastApiRecommendationsTopKInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'top_k must be a number from 1 to 50.'**
+  String get libraryConfigFastApiRecommendationsTopKInvalid;
+
+  /// No description provided for @libraryConfigFastApiDevUidLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'X-Dev-Uid (optional, dev only)'**
+  String get libraryConfigFastApiDevUidLabel;
+
+  /// No description provided for @libraryConfigFastApiDevUidHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'When FastAPI has DEV_AUTH_BYPASS enabled, enter an Auth UID to send the X-Dev-Uid header. Leave empty in production.'**
+  String get libraryConfigFastApiDevUidHelper;
+
+  /// No description provided for @libraryConfigFastApiBookRecommendPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Book-based recommend API path (GET …?book_id=)'**
+  String get libraryConfigFastApiBookRecommendPathLabel;
+
+  /// No description provided for @libraryConfigFastApiBookRecommendPathHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: recommend → GET …/recommend?book_id=…&top_k=…'**
+  String get libraryConfigFastApiBookRecommendPathHelper;
+
+  /// No description provided for @libraryConfigFastApiBookRecommendTopKLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'top_k (book-based recommendations)'**
+  String get libraryConfigFastApiBookRecommendTopKLabel;
+
+  /// No description provided for @libraryConfigFastApiBookRecommendTopKHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'1–50, default 5. Leave empty for 5.'**
+  String get libraryConfigFastApiBookRecommendTopKHelper;
+
+  /// No description provided for @libraryConfigFastApiBookRecommendTopKInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Book-based top_k must be between 1 and 50.'**
+  String get libraryConfigFastApiBookRecommendTopKInvalid;
+
   /// No description provided for @libraryConfigSave.
   ///
   /// In en, this message translates to:
@@ -5516,6 +5846,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Description'**
   String get excelSampleColDescription;
+
+  /// No description provided for @excelSampleColImageUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover image URL'**
+  String get excelSampleColImageUrl;
 
   /// No description provided for @excelTemplateFileName.
   ///

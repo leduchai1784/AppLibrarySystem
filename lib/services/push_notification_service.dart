@@ -23,7 +23,8 @@ Future<AppLocalizations> _pushL10n() async {
 /// Đồng bộ khóa với [AppSettingsController._keyPushEnabled] — giữ string khớp.
 const String kPrefsKeyPushNotifications = 'mobile_push_enabled';
 
-final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin _localNotifications =
+    FlutterLocalNotificationsPlugin();
 
 bool _nativeMobilePush() => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
@@ -54,7 +55,9 @@ Future<void> _ensureLocalNotificationsInitialized() async {
 
   if (Platform.isAndroid) {
     await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(
           AndroidNotificationChannel(
             'library_channel',
@@ -71,12 +74,21 @@ Future<void> _showNotificationFromRemote(RemoteMessage message) async {
   await _ensureLocalNotificationsInitialized();
   final loc = await _pushL10n();
   final n = message.notification;
-  final title = n?.title ?? message.data['title']?.toString() ?? loc.pushDefaultTitle;
+  final title =
+      n?.title ?? message.data['title']?.toString() ?? loc.pushDefaultTitle;
   final body = n?.body ?? message.data['body']?.toString() ?? '';
-  await _showLocalNotification(title, body, id: message.hashCode.abs() % 2000000000);
+  await _showLocalNotification(
+    title,
+    body,
+    id: message.hashCode.abs() % 2000000000,
+  );
 }
 
-Future<void> _showLocalNotification(String title, String body, {required int id}) async {
+Future<void> _showLocalNotification(
+  String title,
+  String body, {
+  required int id,
+}) async {
   await _ensureLocalNotificationsInitialized();
   final loc = await _pushL10n();
   final androidDetails = AndroidNotificationDetails(
@@ -110,7 +122,9 @@ class PushNotificationService {
     await _ensureLocalNotificationsInitialized();
 
     final androidPlugin = _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await androidPlugin?.requestNotificationsPermission();
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
@@ -142,19 +156,17 @@ class PushNotificationService {
     await messaging.requestPermission(alert: true, badge: true, sound: true);
     final token = await messaging.getToken();
     if (token == null || token.isEmpty) return;
-    await FirebaseFirestore.instance.collection('users').doc(uid).set(
-      {'fcmTokens': FieldValue.arrayUnion([token])},
-      SetOptions(merge: true),
-    );
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'fcmTokens': FieldValue.arrayUnion([token]),
+    }, SetOptions(merge: true));
     if (!_tokenRefreshHooked) {
       _tokenRefreshHooked = true;
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
         final u = FirebaseAuth.instance.currentUser;
         if (u == null) return;
-        await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
-          {'fcmTokens': FieldValue.arrayUnion([newToken])},
-          SetOptions(merge: true),
-        );
+        await FirebaseFirestore.instance.collection('users').doc(u.uid).set({
+          'fcmTokens': FieldValue.arrayUnion([newToken]),
+        }, SetOptions(merge: true));
       });
     }
   }
@@ -172,20 +184,26 @@ class PushNotificationService {
   }
 
   static Future<void> _startFirestoreMirror(String uid) async {
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final role = (userDoc.data()?['role'] ?? '').toString().toLowerCase().trim();
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    final role = (userDoc.data()?['role'] ?? '')
+        .toString()
+        .toLowerCase()
+        .trim();
     final isStaff = role == 'admin' || role == 'manager';
 
     final Query<Map<String, dynamic>> q = isStaff
         ? FirebaseFirestore.instance
-            .collection('notifications')
-            .orderBy('createdAt', descending: true)
-            .limit(30)
+              .collection('notifications')
+              .orderBy('createdAt', descending: true)
+              .limit(30)
         : FirebaseFirestore.instance
-            .collection('notifications')
-            .where('userId', isEqualTo: uid)
-            .orderBy('createdAt', descending: true)
-            .limit(30);
+              .collection('notifications')
+              .where('userId', isEqualTo: uid)
+              .orderBy('createdAt', descending: true)
+              .limit(30);
 
     var firstSnapshot = true;
     await _firestoreMirrorSub?.cancel();
@@ -204,7 +222,11 @@ class PushNotificationService {
           final loc = await _pushL10n();
           final title = (d['title'] ?? loc.pushFallbackTitle).toString();
           final body = (d['body'] ?? '').toString();
-          await _showLocalNotification(title, body, id: change.doc.id.hashCode.abs() % 2000000000);
+          await _showLocalNotification(
+            title,
+            body,
+            id: change.doc.id.hashCode.abs() % 2000000000,
+          );
         }());
       }
     });

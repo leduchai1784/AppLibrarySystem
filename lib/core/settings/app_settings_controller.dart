@@ -12,14 +12,14 @@ class AppSettingsController extends ChangeNotifier {
     required bool scannerAutofocus,
     required bool scannerSound,
     required bool pushNotificationsEnabled,
-  })  : _prefs = prefs,
-        _themeMode = themeMode,
-        _locale = locale,
-        _qrColorArgb = qrColorArgb,
-        _qrSizeLevel = qrSizeLevel.clamp(0, 2),
-        _scannerAutofocus = scannerAutofocus,
-        _scannerSound = scannerSound,
-        _pushNotificationsEnabled = pushNotificationsEnabled;
+  }) : _prefs = prefs,
+       _themeMode = themeMode,
+       _locale = locale,
+       _qrColorArgb = qrColorArgb,
+       _qrSizeLevel = qrSizeLevel.clamp(0, 2),
+       _scannerAutofocus = scannerAutofocus,
+       _scannerSound = scannerSound,
+       _pushNotificationsEnabled = pushNotificationsEnabled;
 
   static const _keyTheme = 'web_theme_mode';
   static const _keyLocale = 'web_locale';
@@ -29,10 +29,7 @@ class AppSettingsController extends ChangeNotifier {
   static const _keyScannerSound = 'mobile_scanner_sound';
   static const _keyPushEnabled = 'mobile_push_enabled';
 
-  static const List<Locale> supportedLocales = [
-    Locale('vi'),
-    Locale('en'),
-  ];
+  static const List<Locale> supportedLocales = [Locale('vi'), Locale('en')];
 
   /// Mặc định xanh primary app.
   static const int defaultQrColorArgb = 0xFF1E94F6;

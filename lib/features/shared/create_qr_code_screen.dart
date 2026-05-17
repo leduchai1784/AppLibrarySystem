@@ -124,20 +124,18 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
   void _onCreate() {
     final t = AppLocalizations.of(context)!;
     if (_payload.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.createQrEnterContent)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.createQrEnterContent)));
       return;
     }
 
-    final name = _nameController.text.trim().isEmpty ? t.createQrUnnamed : _nameController.text.trim();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          t.createQrCreatedToast(name),
-        ),
-      ),
-    );
+    final name = _nameController.text.trim().isEmpty
+        ? t.createQrUnnamed
+        : _nameController.text.trim();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(t.createQrCreatedToast(name))));
   }
 
   @override
@@ -145,7 +143,9 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
     final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final payload = _payload;
-    final qrPreviewSize = context.watch<AppSettingsController>().qrDefaultPixelSize;
+    final qrPreviewSize = context
+        .watch<AppSettingsController>()
+        .qrDefaultPixelSize;
 
     return Scaffold(
       appBar: AppBar(
@@ -157,8 +157,11 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
         actions: [
           TextButton(
             onPressed: _onCreate,
-            child: Text(t.createQrSave, style: const TextStyle(fontWeight: FontWeight.w800)),
-          )
+            child: Text(
+              t.createQrSave,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
         ],
       ),
       body: SafeArea(
@@ -168,7 +171,10 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
             SizedBox(
               height: 58,
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 scrollDirection: Axis.horizontal,
                 itemCount: 5,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
@@ -185,18 +191,27 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
                     onTap: () => setState(() => _typeIndex = index),
                     borderRadius: BorderRadius.circular(999),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
-                        color: active ? theme.colorScheme.primary : theme.cardColor,
+                        color: active
+                            ? theme.colorScheme.primary
+                            : theme.cardColor,
                         borderRadius: BorderRadius.circular(999),
                         border: active
                             ? null
-                            : Border.all(color: theme.dividerColor.withOpacity(0.65)),
+                            : Border.all(
+                                color: theme.dividerColor.withOpacity(0.65),
+                              ),
                       ),
                       child: Text(
                         labels[index],
                         style: TextStyle(
-                          color: active ? Colors.white : theme.textTheme.bodyMedium?.color,
+                          color: active
+                              ? Colors.white
+                              : theme.textTheme.bodyMedium?.color,
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
                         ),
@@ -242,7 +257,10 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(t.createQrActionButton, style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(
+                  t.createQrActionButton,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(width: 10),
                 const Icon(Icons.arrow_forward),
               ],
@@ -404,7 +422,9 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
                             color: c,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: _qrColor == c ? theme.colorScheme.primary : theme.dividerColor,
+                              color: _qrColor == c
+                                  ? theme.colorScheme.primary
+                                  : theme.dividerColor,
                               width: 2,
                             ),
                           ),
@@ -432,7 +452,9 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
                 ),
                 const SizedBox(width: 10),
                 IconButton(
-                  onPressed: _logoBytes == null ? null : () => setState(() => _logoBytes = null),
+                  onPressed: _logoBytes == null
+                      ? null
+                      : () => setState(() => _logoBytes = null),
                   icon: const Icon(Icons.delete_outline),
                 ),
               ],
@@ -478,7 +500,9 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.95),
                             shape: BoxShape.circle,
-                            border: Border.all(color: theme.dividerColor.withOpacity(0.6)),
+                            border: Border.all(
+                              color: theme.dividerColor.withOpacity(0.6),
+                            ),
                           ),
                           padding: const EdgeInsets.all(4),
                           child: ClipOval(
@@ -507,11 +531,10 @@ class _CreateQrCodeScreenState extends State<CreateQrCodeScreen> {
                   ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
     );
   }
 }
-

@@ -95,20 +95,27 @@ Thông tin sách trong kho.
 | `title`            | string    | Tên sách                |
 | `author`           | string    | Tên tác giả (denormalized, để tìm kiếm) |
 | `authorId`         | string    | ID tác giả (FK → authors, optional) |
-| `categoryId`       | string    | ID danh mục (FK → categories) |
+| `category`         | string    | **Tên danh mục** (field chính đang dùng trong app; dùng để lọc/sort) |
+| `categoryId`       | string    | (Legacy/optional) ID danh mục (FK → categories). App có fallback đọc nếu `category` thiếu |
 | `genreId`          | string    | ID thể loại (FK → genres, optional) |
 | `description`      | string    | Mô tả                   |
 | `isbn`             | string    | Mã ISBN (tìm kiếm, QR)  |
 | `publishedYear`    | number    | Năm xuất bản            |
 | `quantity`         | number    | Tổng số lượng           |
-| `availableQuantity`| number    | Số còn lại              |
+| `availableQuantity`| number    | Số còn lại (field chính) |
+| `available`        | number    | (Legacy/optional) Số còn lại. App fallback dùng nếu `availableQuantity` thiếu |
 | `imageUrl`         | string    | URL ảnh bìa             |
 | `isAvailable`      | boolean   | Còn sách không          |
 | `createdAt`        | timestamp | Ngày thêm               |
 | `updatedAt`        | timestamp | Ngày cập nhật (optional)|
-| `totalBorrowCount` | number    | Tổng lượt mượn (thống kê)|
+| `totalBorrowCount` | number    | (Optional) Tổng lượt mượn (phục vụ thống kê nếu có) |
+| `borrowCount`      | number    | (Optional/tuỳ triển khai) Một số module có thể dùng tên field này thay cho `totalBorrowCount` |
 
 **Cấu trúc:** `books/{bookId}`
+
+**Ghi chú tương thích (theo code hiện tại):**
+- Khi tính tồn kho, app thường lấy \(available = availableQuantity ?? available ?? quantity\).
+- Khi hiển thị danh mục, app ưu tiên `category`, và fallback `categoryId` nếu thiếu.
 
 ---
 
@@ -167,14 +174,33 @@ Cache thống kê để tối ưu hiệu năng dashboard.
 
 Cấu hình thư viện (một document duy nhất).
 
-| Field        | Type   | Mô tả                    |
-|--------------|--------|--------------------------|
-| `libraryName`| string | Tên thư viện             |
-| `loanDays`   | number | Số ngày mượn mặc định    |
-| `finePerDay` | number | Phạt mỗi ngày trả muộn   |
-| `updatedAt`  | timestamp | Thời điểm cập nhật    |
+**Document chính:** `library_settings/config`
 
-**Cấu trúc:** `library_settings/config`
+| Field        | Type   | Mô tả |
+|--------------|--------|------|
+| `libraryName`| string | (Optional) Tên thư viện |
+| `loanDays`   | number | Số ngày mượn gợi ý (được clamp theo BorrowPolicy trong app) |
+| `maxActiveBorrowsPerUser` | number | Giới hạn số phiếu đang mượn tối đa / người |
+| `finePerDay` | number | (Optional) Phạt mỗi ngày trả muộn (nếu áp dụng) |
+| `fastApiBaseUrl` | string | (Optional) Base URL FastAPI cho tính năng gợi ý sách, ví dụ `http://10.10.10.165:8000` |
+| `fastApiRecommendationsPath` | string | (Optional) Path sau base URL; mặc định app: `recommend/me` → `GET …/recommend/me?top_k=…` + `Authorization: Bearer <ID token>` |
+| `fastApiRecommendationsTopK` | number | (Optional) Query `top_k` (1–50); mặc định app: `10` |
+| `fastApiDevUid` | string | (Optional) Chỉ dev: gửi header `X-Dev-Uid` khi FastAPI bật `DEV_AUTH_BYPASS` |
+| `fastApiBookRecommendPath` | string | (Optional) Path gợi ý theo một sách; mặc định app: `recommend` → `GET …/recommend?book_id=…&top_k=…` |
+| `fastApiBookRecommendTopK` | number | (Optional) `top_k` cho API theo sách (1–50); mặc định app: `5` |
+| `features`   | map<string,bool> | Feature flags bật/tắt tính năng (xem bên dưới) |
+| `updatedAt`  | timestamp | Thời điểm cập nhật |
+| `updatedBy`  | string | UID người cập nhật (admin) |
+
+**Schema `features` (theo code hiện tại):**
+```json
+{
+  "scanEnabled": true,
+  "borrowReturnEnabled": true,
+  "aiRecommendationsEnabled": true,
+  "statisticsEnabled": true
+}
+```
 
 ---
 

@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/export/library_report_save.dart';
+import '../../core/export/report_file_naming.dart';
 import '../../core/utils/export_share_bytes.dart';
 import '../../core/utils/web_download.dart';
 import '../../services/library_data_export_service.dart';
@@ -28,7 +32,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   DateTimeRange? _selectedRange;
 
   static DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
-  static DateTime _endOfDay(DateTime d) => DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
+  static DateTime _endOfDay(DateTime d) =>
+      DateTime(d.year, d.month, d.day, 23, 59, 59, 999);
 
   DateTimeRange _thisWeekRange() {
     final now = DateTime.now();
@@ -89,7 +94,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: Text(
                   lt.statsExportPickFormat,
-                  style: Theme.of(ctx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(
+                    ctx,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               ListTile(
@@ -118,44 +125,130 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Future<void> _runExport(BuildContext context, _ExportKind kind) async {
     final t = AppLocalizations.of(context)!;
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    final phase = ValueNotifier<String?>(null);
+
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          return PopScope(
+            canPop: false,
+            child: ValueListenableBuilder<String?>(
+              valueListenable: phase,
+              builder: (_, ph, __) {
+                return AlertDialog(
+                  title: Text(t.statsExportReport),
+                  content: SizedBox(
+                    width: 300,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 8),
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          ph ?? '…',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(ctx).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    if (!mounted) return;
     setState(() => _exportBusy = true);
+
     try {
       final r = _selectedRange ?? _thisWeekRange();
-      final ts = DateTime.now().millisecondsSinceEpoch;
-
+      final now = DateTime.now();
+      final List<int> bytes;
+      final String name;
+      final String mime;
       switch (kind) {
         case _ExportKind.excel:
-          final bytes = await LibraryDataExportService.buildStatisticsExcelBytes(start: r.start, end: r.end, l10n: t);
-          final name = 'library_statistics_$ts.xlsx';
-          if (kIsWeb) {
-            triggerWebDownloadBytes(
-              name,
-              bytes,
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            );
-          } else {
-            await shareBytesAsFile(
-              bytes,
-              name,
-              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            );
-          }
+          phase.value = t.statsOverviewSection;
+          bytes = await LibraryDataExportService.buildStatisticsExcelBytes(
+            start: r.start,
+            end: r.end,
+            l10n: t,
+            onPhase: (p) => phase.value = p,
+            onBorrowProgress: (n) => phase.value = 'borrow_records: $n',
+          );
+          name = ReportFileNaming.libraryReportExcel(now);
+          mime =
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         case _ExportKind.pdf:
-          final bytes = await LibraryDataExportService.buildStatisticsPdfBytes(start: r.start, end: r.end, l10n: t);
-          final name = 'library_statistics_$ts.pdf';
-          if (kIsWeb) {
-            triggerWebDownloadBytes(name, bytes, 'application/pdf');
-          } else {
-            await shareBytesAsFile(bytes, name, mimeType: 'application/pdf');
-          }
+          phase.value = t.statsOverviewSection;
+          bytes = await LibraryDataExportService.buildStatisticsPdfBytes(
+            start: r.start,
+            end: r.end,
+            l10n: t,
+            onPhase: (p) => phase.value = p,
+            onBorrowProgress: (n) => phase.value = 'borrow_records: $n',
+          );
+          name = ReportFileNaming.libraryReportPdf(now);
+          mime = 'application/pdf';
       }
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.statsExportDone)));
+      if (rootNav.canPop()) {
+        rootNav.pop();
+      }
+
+      if (kIsWeb) {
+        triggerWebDownloadBytes(name, bytes, mime);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.statsExportDone)));
+      } else {
+        final path = await saveLibraryReportToAppDir(bytes, name);
+        if (path != null) {
+          await SharePlus.instance.share(
+            ShareParams(
+              files: [XFile(path, mimeType: mime, name: name)],
+              subject: name,
+            ),
+          );
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(t.statsExportDone),
+              action: SnackBarAction(
+                label: 'Mở file',
+                onPressed: () => OpenFilex.open(path),
+              ),
+            ),
+          );
+        } else {
+          await shareBytesAsFile(bytes, name, mimeType: mime);
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(t.statsExportDone)));
+        }
+      }
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.statsExportError('$e'))));
+      if (context.mounted && rootNav.canPop()) {
+        rootNav.pop();
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.statsExportError('$e'))));
+      }
     } finally {
+      phase.dispose();
       if (mounted) setState(() => _exportBusy = false);
     }
   }
@@ -176,24 +269,31 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       stream: FirebaseFirestore.instance.collection('books').snapshots(),
       builder: (context, booksSnap) {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('borrow_records').snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('borrow_records')
+              .snapshots(),
           builder: (context, borrowsSnap) {
             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance.collection('users').snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .snapshots(),
               builder: (context, usersSnap) {
                 return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: FirebaseFirestore.instance.collection('categories').snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection('categories')
+                      .snapshots(),
                   builder: (context, catSnap) {
                     if (borrowsSnap.hasError || usersSnap.hasError) {
                       return Scaffold(
                         appBar: AppBar(title: Text(t.statisticsTitle)),
-                        body: Center(
-                          child: Text(t.statsLoadError),
-                        ),
+                        body: Center(child: Text(t.statsLoadError)),
                       );
                     }
-                    if (booksSnap.connectionState == ConnectionState.waiting && !booksSnap.hasData) {
-                      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                    if (booksSnap.connectionState == ConnectionState.waiting &&
+                        !booksSnap.hasData) {
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
                     }
                     final bookDocs = booksSnap.data?.docs ?? [];
                     final allBorrows = borrowsSnap.data?.docs ?? [];
@@ -218,11 +318,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                 pinned: true,
                                 toolbarHeight: 48,
                                 surfaceTintColor: Colors.transparent,
-                                backgroundColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.97),
+                                backgroundColor: theme.scaffoldBackgroundColor
+                                    .withValues(alpha: 0.97),
                                 foregroundColor: theme.colorScheme.onSurface,
                                 title: Text(
                                   t.statisticsTitle,
-                                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                                 actions: [
                                   Padding(
@@ -235,7 +338,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                 ],
                               ),
                               SliverPadding(
-                                padding: const EdgeInsets.fromLTRB(14, 10, 14, 96),
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  10,
+                                  14,
+                                  96,
+                                ),
                                 sliver: SliverList(
                                   delegate: SliverChildListDelegate(
                                     _buildContent(theme, t, snap),
@@ -250,23 +358,37 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               top: false,
                               child: Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+                                padding: const EdgeInsets.fromLTRB(
+                                  14,
+                                  8,
+                                  14,
+                                  10,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: theme.scaffoldBackgroundColor.withValues(alpha: 0.96),
+                                  color: theme.scaffoldBackgroundColor
+                                      .withValues(alpha: 0.96),
                                   border: Border(
-                                    top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.45)),
+                                    top: BorderSide(
+                                      color: theme.dividerColor.withValues(
+                                        alpha: 0.45,
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 child: SizedBox(
                                   height: 46,
                                   width: double.infinity,
                                   child: ElevatedButton(
-                                    onPressed: _exportBusy ? null : () => _showExportOptions(context),
+                                    onPressed: _exportBusy
+                                        ? null
+                                        : () => _showExportOptions(context),
                                     style: ElevatedButton.styleFrom(
                                       elevation: 0,
                                       backgroundColor: AppColors.primary,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -275,16 +397,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                         ? const SizedBox(
                                             height: 22,
                                             width: 22,
-                                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
                                           )
                                         : Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
-                                              const Icon(Icons.download_rounded, size: 20),
+                                              const Icon(
+                                                Icons.download_rounded,
+                                                size: 20,
+                                              ),
                                               const SizedBox(width: 8),
                                               Text(
                                                 t.statsExportReport,
-                                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 14,
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -306,27 +438,44 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  List<Widget> _buildContent(ThemeData theme, AppLocalizations t, LibraryStatisticsSnapshot s) {
-    final colors = [AppColors.primary, const Color(0xFF60A5FA), const Color(0xFF93C5FD), const Color(0xFFBFDBFE)];
+  List<Widget> _buildContent(
+    ThemeData theme,
+    AppLocalizations t,
+    LibraryStatisticsSnapshot s,
+  ) {
+    final colors = [
+      AppColors.primary,
+      const Color(0xFF60A5FA),
+      const Color(0xFF93C5FD),
+      const Color(0xFFBFDBFE),
+    ];
     final invDonut = s.categoryInventoryPct.isEmpty
         ? <(String, int, Color)>[(t.statsNoChartData, 1, AppColors.primary)]
         : s.categoryInventoryPct
-            .asMap()
-            .entries
-            .map((e) => (e.value.$1, e.value.$3, colors[e.key % colors.length]))
-            .toList();
+              .asMap()
+              .entries
+              .map(
+                (e) => (e.value.$1, e.value.$3, colors[e.key % colors.length]),
+              )
+              .toList();
     final borDonut = s.categoryBorrowCounts.isEmpty
         ? <(String, int, Color)>[(t.statsNoChartData, 1, AppColors.secondary)]
         : s.categoryBorrowCounts
-            .asMap()
-            .entries
-            .map((e) => (e.value.$1, e.value.$2, colors[e.key % colors.length]))
-            .toList();
+              .asMap()
+              .entries
+              .map(
+                (e) => (e.value.$1, e.value.$2, colors[e.key % colors.length]),
+              )
+              .toList();
 
     final dailyVals = s.borrowsByDay.map((e) => e.$2.toDouble()).toList();
-    final chartDaily = dailyVals.length <= 1 ? (dailyVals.isEmpty ? [0.0, 0.0] : [dailyVals.first, dailyVals.first]) : dailyVals;
+    final chartDaily = dailyVals.length <= 1
+        ? (dailyVals.isEmpty ? [0.0, 0.0] : [dailyVals.first, dailyVals.first])
+        : dailyVals;
 
-    final monthNorm = normalizeBars(s.borrowsByMonthLast12.map((e) => e.$2).toList());
+    final monthNorm = normalizeBars(
+      s.borrowsByMonthLast12.map((e) => e.$2).toList(),
+    );
 
     return [
       _sectionHeader(theme, t.statsOverviewSection, t.statsOverviewSubtitle),
@@ -350,7 +499,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   value: '${s.totalBookTitles}',
                   icon: Icons.menu_book_rounded,
                   iconBg: AppColors.primary.withValues(alpha: 0.08),
-                  deltaText: t.statsDeltaTotalPrintCopies('${s.totalBookCopies}'),
+                  deltaText: t.statsDeltaTotalPrintCopies(
+                    '${s.totalBookCopies}',
+                  ),
                   deltaColor: AppColors.success,
                 ),
               ),
@@ -401,7 +552,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   icon: Icons.fact_check_rounded,
                   iconBg: const Color(0xFFEC4899).withValues(alpha: 0.12),
                   deltaText: t.statsDeltaLateShort('${s.periodLate}'),
-                  deltaColor: s.periodLate > 0 ? AppColors.error : theme.hintColor,
+                  deltaColor: s.periodLate > 0
+                      ? AppColors.error
+                      : theme.hintColor,
                 ),
               ),
             ],
@@ -419,16 +572,25 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             _kv(t.statsKvBorrowingTicketsInPeriod, '${s.periodBorrowing}'),
             _kv(t.statsKvReturned, '${s.periodReturned}'),
             _kv(t.statsKvLateRecorded, '${s.periodLate}'),
-            if (s.onTimeReturnRate != null) _kv(t.statsKvOnTimeRate, '${(s.onTimeReturnRate! * 100).toStringAsFixed(1)}%'),
+            if (s.onTimeReturnRate != null)
+              _kv(
+                t.statsKvOnTimeRate,
+                '${(s.onTimeReturnRate! * 100).toStringAsFixed(1)}%',
+              ),
             if (s.avgBorrowDaysReturned != null)
               _kv(
                 t.statsKvAvgBorrowDaysReturned,
-                t.statsKvAvgBorrowDaysValue(s.avgBorrowDaysReturned!.toStringAsFixed(1)),
+                t.statsKvAvgBorrowDaysValue(
+                  s.avgBorrowDaysReturned!.toStringAsFixed(1),
+                ),
               ),
             const SizedBox(height: 6),
             Text(
               t.statsFootnoteOnTimeReturns,
-              style: AppTextStyles.caption.copyWith(fontSize: 10, color: theme.hintColor),
+              style: AppTextStyles.caption.copyWith(
+                fontSize: 10,
+                color: theme.hintColor,
+              ),
             ),
           ],
         ),
@@ -443,14 +605,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           children: [
             Text(
               t.statsTotalTurns('${s.borrowEventsInPeriod}'),
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: theme.colorScheme.primary),
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                color: theme.colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
               height: 160,
               width: double.infinity,
               child: CustomPaint(
-                painter: _LineAreaPainter(data: chartDaily, color: AppColors.primary),
+                painter: _LineAreaPainter(
+                  data: chartDaily,
+                  color: AppColors.primary,
+                ),
               ),
             ),
             if (s.borrowsByDay.length <= 14)
@@ -459,7 +628,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 runSpacing: 4,
                 children: s.borrowsByDay.map((e) {
                   return Chip(
-                    label: Text('${e.$1.day}/${e.$1.month}: ${e.$2}', style: const TextStyle(fontSize: 11)),
+                    label: Text(
+                      '${e.$1.day}/${e.$1.month}: ${e.$2}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
                     visualDensity: VisualDensity.compact,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   );
@@ -469,7 +641,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ),
       ),
       const SizedBox(height: 16),
-      _sectionHeader(theme, t.statsMonthlyBorrowsSection, t.statsMonthlyTrendSubtitle),
+      _sectionHeader(
+        theme,
+        t.statsMonthlyBorrowsSection,
+        t.statsMonthlyTrendSubtitle,
+      ),
       const SizedBox(height: 8),
       _CardShell(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
@@ -482,7 +658,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               child: CustomPaint(
                 painter: _MonthlyBarPainter(
                   values: monthNorm,
-                  labels: s.borrowsByMonthLast12.map((e) => e.$1.substring(5)).toList(),
+                  labels: s.borrowsByMonthLast12
+                      .map((e) => e.$1.substring(5))
+                      .toList(),
                   color: AppColors.primary,
                 ),
               ),
@@ -498,14 +676,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ),
       ),
       const SizedBox(height: 16),
-      _sectionHeader(theme, t.statsCategoriesSection, t.statsCategoriesDonutsSubtitle),
+      _sectionHeader(
+        theme,
+        t.statsCategoriesSection,
+        t.statsCategoriesDonutsSubtitle,
+      ),
       const SizedBox(height: 8),
       LayoutBuilder(
         builder: (context, c) {
           final narrow = c.maxWidth < 380;
           final left = _donutCard(theme, t.statsDonutByInventory, invDonut);
-          final right = _donutCard(theme, t.statsDonutBorrowedInPeriod, borDonut);
-          if (narrow) return Column(children: [left, const SizedBox(height: 10), right]);
+          final right = _donutCard(
+            theme,
+            t.statsDonutBorrowedInPeriod,
+            borDonut,
+          );
+          if (narrow)
+            return Column(children: [left, const SizedBox(height: 10), right]);
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -522,14 +709,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(t.statsTopCategoriesBorrowed, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              t.statsTopCategoriesBorrowed,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 8),
-            ...s.categoryBorrowCounts.take(6).map(
+            ...s.categoryBorrowCounts
+                .take(6)
+                .map(
                   (e) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: _HorizontalPercentBar(
                       label: e.$1,
-                      percent: s.borrowEventsInPeriod > 0 ? (e.$2 / s.borrowEventsInPeriod) * 100 : 0,
+                      percent: s.borrowEventsInPeriod > 0
+                          ? (e.$2 / s.borrowEventsInPeriod) * 100
+                          : 0,
                       color: AppColors.primary,
                     ),
                   ),
@@ -542,11 +738,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       const SizedBox(height: 8),
       _rankedBookCard(theme, t, t.statsTopBorrowedThisPeriod, s.topBorrowed),
       const SizedBox(height: 10),
-      _rankedBookCard(theme, t, t.statsLeastBorrowedThisPeriod, s.leastBorrowed),
+      _rankedBookCard(
+        theme,
+        t,
+        t.statsLeastBorrowedThisPeriod,
+        s.leastBorrowed,
+      ),
       const SizedBox(height: 10),
-      _bookListCard(theme, t, t.statsOutOfStockTitle, s.outOfStockBooks, empty: t.statsOutOfStockEmpty),
+      _bookListCard(
+        theme,
+        t,
+        t.statsOutOfStockTitle,
+        s.outOfStockBooks,
+        empty: t.statsOutOfStockEmpty,
+      ),
       const SizedBox(height: 10),
-      _bookListCard(theme, t, t.statsNewBooksInPeriodTitle, s.newBooksInPeriod, empty: t.statsNewBooksEmpty),
+      _bookListCard(
+        theme,
+        t,
+        t.statsNewBooksInPeriodTitle,
+        s.newBooksInPeriod,
+        empty: t.statsNewBooksEmpty,
+      ),
       const SizedBox(height: 16),
       _sectionHeader(theme, t.statsAuthorsByPeriodSection, null),
       const SizedBox(height: 8),
@@ -559,8 +772,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     .map(
                       (e) => ListTile(
                         dense: true,
-                        title: Text(e.$1, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        trailing: Text('${e.$2}', style: const TextStyle(fontWeight: FontWeight.w900)),
+                        title: Text(
+                          e.$1,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(
+                          '${e.$2}',
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
                       ),
                     )
                     .toList(),
@@ -571,9 +791,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       const SizedBox(height: 8),
       _userListCard(theme, t, t.statsTopUsersPeriod, s.topUserBorrowers),
       const SizedBox(height: 10),
-      _borrowerRowsCard(theme, t, t.statsBorrowersActiveTickets, s.currentBorrowers, overdue: false),
+      _borrowerRowsCard(
+        theme,
+        t,
+        t.statsBorrowersActiveTickets,
+        s.currentBorrowers,
+        overdue: false,
+      ),
       const SizedBox(height: 10),
-      _borrowerRowsCard(theme, t, t.statsBorrowersOverdue, s.overdueBorrowers, overdue: true),
+      _borrowerRowsCard(
+        theme,
+        t,
+        t.statsBorrowersOverdue,
+        s.overdueBorrowers,
+        overdue: true,
+      ),
       const SizedBox(height: 16),
     ];
   }
@@ -582,10 +814,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800, fontSize: 15)),
+        Text(
+          title,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
+          ),
+        ),
         if (subtitle != null) ...[
           const SizedBox(height: 2),
-          Text(subtitle, style: AppTextStyles.caption.copyWith(color: theme.colorScheme.onSurfaceVariant, fontSize: 11)),
+          Text(
+            subtitle,
+            style: AppTextStyles.caption.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 11,
+            ),
+          ),
         ],
       ],
     );
@@ -597,7 +841,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(child: Text(k, style: AppTextStyles.body.copyWith(fontSize: 13))),
+          Expanded(
+            child: Text(k, style: AppTextStyles.body.copyWith(fontSize: 13)),
+          ),
           Text(v, style: const TextStyle(fontWeight: FontWeight.w900)),
         ],
       ),
@@ -610,16 +856,33 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final b = months[months.length - 1];
     final diff = b.$2 - a.$2;
     final arrow = diff >= 0 ? '↑' : '↓';
-    return t.statsMonthCompareTwo(a.$1, '${a.$2}', b.$1, '${b.$2}', arrow, '${diff.abs()}');
+    return t.statsMonthCompareTwo(
+      a.$1,
+      '${a.$2}',
+      b.$1,
+      '${b.$2}',
+      arrow,
+      '${diff.abs()}',
+    );
   }
 
-  Widget _donutCard(ThemeData theme, String title, List<(String, int, Color)> items) {
+  Widget _donutCard(
+    ThemeData theme,
+    String title,
+    List<(String, int, Color)> items,
+  ) {
     return _CardShell(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, fontSize: 13)),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -642,13 +905,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               Container(
                                 width: 8,
                                 height: 8,
-                                decoration: BoxDecoration(color: e.$3, shape: BoxShape.circle),
+                                decoration: BoxDecoration(
+                                  color: e.$3,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   '${e.$1} (${e.$2})',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -667,7 +936,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
-  Widget _rankedBookCard(ThemeData theme, AppLocalizations t, String title, List<RankedBookRow> rows) {
+  Widget _rankedBookCard(
+    ThemeData theme,
+    AppLocalizations t,
+    String title,
+    List<RankedBookRow> rows,
+  ) {
     return _CardShell(
       padding: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -676,13 +950,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-            child: Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            child: Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.35)),
           if (rows.isEmpty)
             Padding(
               padding: const EdgeInsets.all(14),
-              child: Text(t.statsEmptyTopBooks, style: TextStyle(color: theme.hintColor)),
+              child: Text(
+                t.statsEmptyTopBooks,
+                style: TextStyle(color: theme.hintColor),
+              ),
             )
           else
             ...rows.map(
@@ -691,11 +973,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 leading: CircleAvatar(
                   radius: 14,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  child: Text('${row.rank}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                  child: Text(
+                    '${row.rank}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
-                title: Text(row.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: Text(row.categoryLabel, style: const TextStyle(fontSize: 11)),
-                trailing: Text('${row.borrowCount}', style: const TextStyle(fontWeight: FontWeight.w900)),
+                title: Text(
+                  row.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  row.categoryLabel,
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: Text(
+                  '${row.borrowCount}',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
               ),
             ),
         ],
@@ -715,15 +1013,26 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
           if (rows.isEmpty)
             Text(empty, style: TextStyle(color: theme.hintColor, fontSize: 13))
           else
-            ...rows.take(12).map(
+            ...rows
+                .take(12)
+                .map(
                   (b) => ListTile(
                     dense: true,
-                    title: Text(b.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    title: Text(
+                      b.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     subtitle: Text(
                       t.statsBookStockSubtitle(
                         '${b.available}',
@@ -749,7 +1058,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
           if (rows.isEmpty)
             Text(t.statsNoChartData, style: TextStyle(color: theme.hintColor))
@@ -759,7 +1073,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 dense: true,
                 title: Text(e.$2, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(e.$1, style: const TextStyle(fontSize: 11)),
-                trailing: Text(t.statsUserBorrowCount('${e.$3}'), style: const TextStyle(fontWeight: FontWeight.w900)),
+                trailing: Text(
+                  t.statsUserBorrowCount('${e.$3}'),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
               ),
             ),
         ],
@@ -779,21 +1096,38 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
           if (rows.isEmpty)
             Text(t.statsBorrowersNone, style: TextStyle(color: theme.hintColor))
           else
-            ...rows.take(15).map(
+            ...rows
+                .take(15)
+                .map(
                   (r) => ListTile(
                     dense: true,
-                    title: Text(r.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(r.email, style: const TextStyle(fontSize: 11)),
+                    title: Text(
+                      r.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      r.email,
+                      style: const TextStyle(fontSize: 11),
+                    ),
                     trailing: Text(
                       overdue
                           ? t.statsBorrowerOverdueCount('${r.overdueCount}')
                           : t.statsBorrowerActiveCount('${r.activeCount}'),
-                      style: TextStyle(fontWeight: FontWeight.w900, color: overdue ? AppColors.error : null),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: overdue ? AppColors.error : null,
+                      ),
                     ),
                   ),
                 ),
@@ -829,7 +1163,9 @@ class _SummaryStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final iconColor = data.deltaColor == AppColors.success ? AppColors.primary : data.deltaColor;
+    final iconColor = data.deltaColor == AppColors.success
+        ? AppColors.primary
+        : data.deltaColor;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -865,7 +1201,10 @@ class _SummaryStatCard extends StatelessWidget {
                     ),
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: data.deltaColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
@@ -900,7 +1239,10 @@ class _SummaryStatCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   data.title,
-                  style: AppTextStyles.caption.copyWith(fontSize: 10.75, height: 1.15),
+                  style: AppTextStyles.caption.copyWith(
+                    fontSize: 10.75,
+                    height: 1.15,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -944,10 +1286,7 @@ class _CardShell extends StatelessWidget {
         clipBehavior: clipBehavior,
         child: Material(
           color: theme.colorScheme.surface,
-          child: Padding(
-            padding: padding,
-            child: child,
-          ),
+          child: Padding(padding: padding, child: child),
         ),
       ),
     );
@@ -965,16 +1304,26 @@ class _DateRangeButton extends StatelessWidget {
     final theme = Theme.of(context);
     return TextButton.icon(
       onPressed: onTap,
-      icon: Icon(Icons.calendar_today_rounded, size: 16, color: theme.colorScheme.primary),
+      icon: Icon(
+        Icons.calendar_today_rounded,
+        size: 16,
+        color: theme.colorScheme.primary,
+      ),
       label: Text(
         label,
-        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: theme.colorScheme.onSurface),
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          color: theme.colorScheme.onSurface,
+        ),
       ),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.55,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       ),
     );
@@ -1004,7 +1353,9 @@ class _HorizontalPercentBar extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: AppTextStyles.small.copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.small.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1145,7 +1496,11 @@ class _MonthlyBarPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: labels[i],
-          style: TextStyle(fontSize: 9, color: color, fontFeatures: const [ui.FontFeature.tabularFigures()]),
+          style: TextStyle(
+            fontSize: 9,
+            color: color,
+            fontFeatures: const [ui.FontFeature.tabularFigures()],
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: barW + gap);

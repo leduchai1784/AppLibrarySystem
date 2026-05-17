@@ -30,26 +30,71 @@ class AdminHomeTab extends StatelessWidget {
               final gap = 8.0;
               final w = (c.maxWidth - gap) / 2;
               Widget cell(String label, IconData icon, String route) =>
-                  SizedBox(width: w, child: _buildQuickTile(context, label, icon, route));
+                  SizedBox(
+                    width: w,
+                    child: _buildQuickTile(context, label, icon, route),
+                  );
               return StreamBuilder<Map<String, bool>>(
                 stream: FeatureFlagsService.watchFlags(),
                 builder: (context, snap) {
                   final flags = snap.data;
-                  final borrowEnabled = FeatureFlagsService.flag(flags, FeatureFlagsService.borrowReturnEnabled);
-                  final statsEnabled = FeatureFlagsService.flag(flags, FeatureFlagsService.statisticsEnabled);
+                  final borrowEnabled = FeatureFlagsService.flag(
+                    flags,
+                    FeatureFlagsService.borrowReturnEnabled,
+                  );
+                  final statsEnabled = FeatureFlagsService.flag(
+                    flags,
+                    FeatureFlagsService.statisticsEnabled,
+                  );
                   return Wrap(
                     spacing: gap,
                     runSpacing: gap,
                     children: [
-                      cell(t.adminQuickAddBook, Icons.add_rounded, AppRoutes.addBook),
-                      cell(t.adminQuickBookList, Icons.menu_book_outlined, AppRoutes.bookList),
+                      cell(
+                        t.adminQuickAddBook,
+                        Icons.add_rounded,
+                        AppRoutes.addBook,
+                      ),
+                      cell(
+                        t.adminQuickBookList,
+                        Icons.menu_book_outlined,
+                        AppRoutes.bookList,
+                      ),
                       if (borrowEnabled)
-                        cell(t.adminQuickCreateBorrow, Icons.add_circle_outline, AppRoutes.borrowCreate),
-                      if (borrowEnabled) cell(t.adminQuickReturn, Icons.keyboard_return_rounded, AppRoutes.returnBook),
-                      cell(t.adminQuickManageCategories, Icons.category_outlined, AppRoutes.categoryManage),
-                      if (AppUser.isAdmin) cell(t.adminQuickManageUsers, Icons.people_outline, AppRoutes.userManage),
-                      if (statsEnabled) cell(t.adminQuickStats, Icons.bar_chart_rounded, AppRoutes.statistics),
-                      if (borrowEnabled) cell(t.adminQuickFinePayment, Icons.payments_outlined, AppRoutes.fine),
+                        cell(
+                          t.adminQuickCreateBorrow,
+                          Icons.add_circle_outline,
+                          AppRoutes.borrowCreate,
+                        ),
+                      if (borrowEnabled)
+                        cell(
+                          t.adminQuickReturn,
+                          Icons.keyboard_return_rounded,
+                          AppRoutes.returnBook,
+                        ),
+                      if (borrowEnabled)
+                        cell(
+                          t.adminQuickFinePayment,
+                          Icons.payments_outlined,
+                          AppRoutes.finePayment,
+                        ),
+                      cell(
+                        t.adminQuickManageCategories,
+                        Icons.category_outlined,
+                        AppRoutes.categoryManage,
+                      ),
+                      if (AppUser.isAdmin)
+                        cell(
+                          t.adminQuickManageUsers,
+                          Icons.people_outline,
+                          AppRoutes.userManage,
+                        ),
+                      if (statsEnabled)
+                        cell(
+                          t.adminQuickStats,
+                          Icons.bar_chart_rounded,
+                          AppRoutes.statistics,
+                        ),
                     ],
                   );
                 },
@@ -62,7 +107,12 @@ class AdminHomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickTile(BuildContext context, String label, IconData icon, String route) {
+  Widget _buildQuickTile(
+    BuildContext context,
+    String label,
+    IconData icon,
+    String route,
+  ) {
     final theme = Theme.of(context);
     return Material(
       color: Colors.transparent,
@@ -72,6 +122,8 @@ class AdminHomeTab extends StatelessWidget {
             AppRoutes.openBorrowCreate(context);
           } else if (route == AppRoutes.returnBook) {
             AppRoutes.openReturnBook(context);
+          } else if (route == AppRoutes.finePayment) {
+            AppRoutes.pushRoot(context, AppRoutes.finePayment);
           } else {
             AppRoutes.pushRoot(context, route);
           }
@@ -80,8 +132,12 @@ class AdminHomeTab extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.35)),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.65,
+            ),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.35),
+            ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
           child: Row(
@@ -128,14 +184,20 @@ class _AdminRealtimeStatsGrid extends StatelessWidget {
           stream: FirebaseFirestore.instance.collection('users').snapshots(),
           builder: (context, usersSnap) {
             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance.collection('borrow_records').snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('borrow_records')
+                  .snapshots(),
               builder: (context, borrowsSnap) {
-                final waiting = booksSnap.connectionState == ConnectionState.waiting &&
+                final waiting =
+                    booksSnap.connectionState == ConnectionState.waiting &&
                     !booksSnap.hasData &&
                     usersSnap.connectionState == ConnectionState.waiting &&
                     !usersSnap.hasData;
                 if (waiting) {
-                  return const SizedBox(height: 160, child: Center(child: CircularProgressIndicator()));
+                  return const SizedBox(
+                    height: 160,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
                 }
 
                 final bookDocs = booksSnap.data?.docs ?? [];
@@ -143,7 +205,9 @@ class _AdminRealtimeStatsGrid extends StatelessWidget {
                 final userCount = usersSnap.data?.docs.length ?? 0;
                 final borrowDocs = borrowsSnap.data?.docs ?? [];
                 final totalBorrows = borrowDocs.length;
-                final activeBorrow = borrowDocs.where((d) => (d.data()['status'] ?? '') == 'borrowing').length;
+                final activeBorrow = borrowDocs
+                    .where((d) => (d.data()['status'] ?? '') == 'borrowing')
+                    .length;
 
                 final stats = [
                   _StatCard(
@@ -199,12 +263,16 @@ class _AdminRealtimeStatsGrid extends StatelessWidget {
                         child: Ink(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                            color: theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.55),
                             border: Border.all(
                               color: theme.dividerColor.withValues(alpha: 0.35),
                             ),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
@@ -235,7 +303,10 @@ class _AdminRealtimeStatsGrid extends StatelessWidget {
                                     const SizedBox(height: 2),
                                     Text(
                                       s.title,
-                                      style: AppTextStyles.caption.copyWith(fontSize: 12.5, height: 1.2),
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 12.5,
+                                        height: 1.2,
+                                      ),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -272,5 +343,10 @@ class _StatCard {
   final String title, value;
   final IconData icon;
   final Color color;
-  _StatCard({required this.title, required this.value, required this.icon, required this.color});
+  _StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 }

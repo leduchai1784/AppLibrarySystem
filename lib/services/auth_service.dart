@@ -4,14 +4,19 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../core/constants/app_constants.dart';
+import '../core/guards/platform_guard.dart';
+import '../core/guards/session_block_reason.dart';
 
 /// Service xử lý đăng nhập, đăng ký và quản lý phiên Firebase Auth
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   /// Trên web cần Web client ID (cùng project Firebase; có trong Google Cloud → Credentials → OAuth client Web).
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb ? '632430558689-eg99tnmudgpkut90lh0angbch8spdtsa.apps.googleusercontent.com' : null,
+    clientId: kIsWeb
+        ? '632430558689-eg99tnmudgpkut90lh0angbch8spdtsa.apps.googleusercontent.com'
+        : null,
   );
 
   /// Đăng nhập bằng email & mật khẩu
@@ -111,16 +116,15 @@ class AuthService {
     final snap = await userDocRef.get();
     final data = snap.data();
 
-    final existingName = (data?['fullName'] ?? data?['name'])?.toString().trim() ?? '';
+    final existingName =
+        (data?['fullName'] ?? data?['name'])?.toString().trim() ?? '';
     final existingRole = (data?['role'])?.toString().trim().toLowerCase() ?? '';
     final existingPhone = (data?['phone'])?.toString().trim() ?? '';
     final existingAvatar = (data?['avatarUrl'])?.toString().trim() ?? '';
     final existingEmail = (data?['email'])?.toString().trim() ?? '';
     final hasActive = data?.containsKey('isActive') ?? false;
 
-    final patch = <String, dynamic>{
-      'uid': user.uid,
-    };
+    final patch = <String, dynamic>{'uid': user.uid};
 
     // Role: chỉ set mặc định nếu thiếu
     if (existingRole.isEmpty) {
@@ -184,7 +188,10 @@ class AuthService {
 
     final data = doc.data();
     final rawRole = data?['role'];
-    final roleStr = (rawRole is String ? rawRole : rawRole?.toString() ?? 'student').trim().toLowerCase();
+    final roleStr =
+        (rawRole is String ? rawRole : rawRole?.toString() ?? 'student')
+            .trim()
+            .toLowerCase();
 
     final role = switch (roleStr) {
       'admin' => UserRole.admin,
@@ -194,28 +201,34 @@ class AuthService {
     AppUser.setRole(role);
   }
 
-  /// Trên web: nếu không phải admin/manager thì đăng xuất (gọi sau khi role đã nạp vào [AppUser]).
-  /// Trả về `true` nếu đã từ chối và đã đăng xuất.
-  static Future<bool> rejectWebSessionIfNotStaff() async {
-    if (!kIsWeb) return false;
-    if (AppUser.isStaff) return false;
+  static Future<void> _signOutIncludingGoogle() async {
     await signOut();
     try {
       await _googleSignIn.signOut();
     } catch (_) {}
-    return true;
+  }
+
+  /// Sau khi role đã nạp vào [AppUser]: nếu vi phạm chính sách nền tảng thì đăng xuất.
+  /// Trả về lý do chặn để UI điều hướng / SnackBar; `null` nếu hợp lệ.
+  static Future<SessionBlockReason?> signOutIfPlatformAccessDenied() async {
+    final reason = PlatformGuard.evaluateAccessForCurrentPlatform();
+    if (reason == null) return null;
+    await _signOutIncludingGoogle();
+    return reason;
+  }
+
+  /// Trên web: nếu không phải admin/manager thì đăng xuất (gọi sau khi role đã nạp vào [AppUser]).
+  /// Trả về `true` nếu đã từ chối và đã đăng xuất.
+  static Future<bool> rejectWebSessionIfNotStaff() async {
+    final r = await signOutIfPlatformAccessDenied();
+    return r == SessionBlockReason.webRequiresStaff;
   }
 
   /// Trên Android/iOS: tài khoản **admin** chỉ dùng cổng web (theo chính sách nền tảng).
   /// Quản lý và sinh viên vẫn dùng app. Trả về `true` nếu đã từ chối và đăng xuất.
   static Future<bool> rejectMobileSessionIfAdmin() async {
-    if (kIsWeb) return false;
-    if (!AppUser.isAdmin) return false;
-    await signOut();
-    try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
-    return true;
+    final r = await signOutIfPlatformAccessDenied();
+    return r == SessionBlockReason.mobileAdminRequiresWeb;
   }
 
   /// Đăng xuất

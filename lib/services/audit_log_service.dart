@@ -7,7 +7,8 @@ class AuditLogService {
 
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static CollectionReference<Map<String, dynamic>> get _col => _db.collection('audit_logs');
+  static CollectionReference<Map<String, dynamic>> get _col =>
+      _db.collection('audit_logs');
 
   static Future<void> append({
     required String action,

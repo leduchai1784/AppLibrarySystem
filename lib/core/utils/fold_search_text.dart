@@ -14,6 +14,24 @@ List<String> searchTokens(String rawQuery) {
   return folded.split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
 }
 
+/// [haystack] chứa [needle] sau khi bỏ dấu / chữ thường cả hai.
+bool foldedContains(String haystack, String needle) {
+  final q = foldSearchText(needle);
+  if (q.isEmpty) return true;
+  return foldSearchText(haystack).contains(q);
+}
+
+/// Mọi token trong [rawQuery] đều xuất hiện trong [haystack] (không phân biệt dấu).
+bool foldedMatchesAllTokens(String haystack, String rawQuery) {
+  final tokens = searchTokens(rawQuery);
+  if (tokens.isEmpty) return true;
+  final foldedHay = foldSearchText(haystack);
+  for (final t in tokens) {
+    if (!foldedHay.contains(t)) return false;
+  }
+  return true;
+}
+
 String _foldChar(String ch) {
   const map = <String, String>{
     // a

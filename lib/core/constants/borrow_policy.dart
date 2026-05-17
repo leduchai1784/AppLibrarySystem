@@ -13,8 +13,7 @@ abstract final class BorrowPolicy {
   /// Mặc định khi không có cấu hình (nằm trong [suggestedMinDays, suggestedMaxDays]).
   static const int defaultLoanDays = 14;
 
-  static int clampToLoanRange(int days) =>
-      days.clamp(minLoanDays, maxLoanDays);
+  static int clampToLoanRange(int days) => days.clamp(minLoanDays, maxLoanDays);
 
   /// Giá trị gợi ý từ Firestore: đưa về [7, 14] để làm ngày trả ban đầu trên form.
   static int clampConfigToSuggestedRange(int days) =>

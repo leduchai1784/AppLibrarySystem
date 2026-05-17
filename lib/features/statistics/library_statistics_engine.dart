@@ -39,8 +39,10 @@ class LibraryStatisticsSnapshot {
   final int totalBookCopies;
   final int totalAvailableCopies;
   final int totalUsers;
+
   /// Số phiếu (lượt) có borrowDate trong kỳ.
   final int borrowEventsInPeriod;
+
   /// Phiếu đang hoạt động (toàn hệ thống): status == borrowing.
   final int activeBorrowTicketsGlobal;
 
@@ -55,6 +57,7 @@ class LibraryStatisticsSnapshot {
 
   /// Tên hiển thị -> phần trăm (tồn đầu sách theo danh mục).
   final List<(String label, double pct, int count)> categoryInventoryPct;
+
   /// Danh mục được mượn nhiều trong kỳ (theo lượt mượn).
   final List<(String label, int borrows)> categoryBorrowCounts;
 
@@ -62,6 +65,7 @@ class LibraryStatisticsSnapshot {
 
   /// Ngày (local) -> số lượt mượn trong kỳ.
   final List<(DateTime day, int count)> borrowsByDay;
+
   /// 12 tháng gần nhất (kết thúc tại tháng của periodEnd): (nhãn yyyy-MM) -> count.
   final List<(String monthKey, int count)> borrowsByMonthLast12;
 
@@ -71,6 +75,7 @@ class LibraryStatisticsSnapshot {
 
   /// Tỷ lệ trả đúng hạn trong các phiếu đã trả (trong kỳ). Null nếu không có dữ liệu.
   final double? onTimeReturnRate;
+
   /// Số ngày mượn trung bình (phiếu đã trả trong kỳ).
   final double? avgBorrowDaysReturned;
 }
@@ -207,7 +212,11 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
     return '—';
   }
 
-  final periodStartDay = DateTime(periodStart.year, periodStart.month, periodStart.day);
+  final periodStartDay = DateTime(
+    periodStart.year,
+    periodStart.month,
+    periodStart.day,
+  );
   final periodEndDay = DateTime(periodEnd.year, periodEnd.month, periodEnd.day);
 
   var totalCopies = 0;
@@ -254,8 +263,12 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
       );
       final catLabel = ck == '__other__'
           ? 'Khác'
-          : (catNames[ck] ?? (bm != null && '${bm['category']}'.trim().isNotEmpty ? '${bm['category']}' : (ck)));
-      borrowCountByCategory[catLabel] = (borrowCountByCategory[catLabel] ?? 0) + 1;
+          : (catNames[ck] ??
+                (bm != null && '${bm['category']}'.trim().isNotEmpty
+                    ? '${bm['category']}'
+                    : (ck)));
+      borrowCountByCategory[catLabel] =
+          (borrowCountByCategory[catLabel] ?? 0) + 1;
       final auth = authorForBook(bid);
       if (auth != '—') {
         borrowCountByAuthor[auth] = (borrowCountByAuthor[auth] ?? 0) + 1;
@@ -278,13 +291,15 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
   final topBorrowed = <RankedBookRow>[];
   for (var i = 0; i < sortedBooks.length && i < 10; i++) {
     final e = sortedBooks[i];
-    topBorrowed.add(RankedBookRow(
-      rank: i + 1,
-      bookId: e.key,
-      title: bookTitle(e.key),
-      categoryLabel: categoryLabelForBook(e.key),
-      borrowCount: e.value,
-    ));
+    topBorrowed.add(
+      RankedBookRow(
+        rank: i + 1,
+        bookId: e.key,
+        title: bookTitle(e.key),
+        categoryLabel: categoryLabelForBook(e.key),
+        borrowCount: e.value,
+      ),
+    );
   }
 
   final allBookIds = bookDocs.map((e) => e.id).toList();
@@ -300,29 +315,35 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
   final leastBorrowed = <RankedBookRow>[];
   for (var i = 0; i < leastPairs.length && i < 10; i++) {
     final p = leastPairs[i];
-    leastBorrowed.add(RankedBookRow(
-      rank: i + 1,
-      bookId: p.id,
-      title: bookTitle(p.id),
-      categoryLabel: categoryLabelForBook(p.id),
-      borrowCount: p.c,
-    ));
+    leastBorrowed.add(
+      RankedBookRow(
+        rank: i + 1,
+        bookId: p.id,
+        title: bookTitle(p.id),
+        categoryLabel: categoryLabelForBook(p.id),
+        borrowCount: p.c,
+      ),
+    );
   }
 
   // Out of stock
   final outOfStock = <BookListRow>[];
   for (final d in bookDocs) {
     final m = d.data();
-    final av = _parseInt(m['availableQuantity'] ?? m['available'] ?? m['quantity']);
+    final av = _parseInt(
+      m['availableQuantity'] ?? m['available'] ?? m['quantity'],
+    );
     if (av <= 0) {
-      outOfStock.add(BookListRow(
-        bookId: d.id,
-        title: '${m['title'] ?? '(Không tên)'}',
-        author: '${m['author'] ?? ''}'.trim(),
-        available: av,
-        quantity: _parseInt(m['quantity']),
-        createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
-      ));
+      outOfStock.add(
+        BookListRow(
+          bookId: d.id,
+          title: '${m['title'] ?? '(Không tên)'}',
+          author: '${m['author'] ?? ''}'.trim(),
+          available: av,
+          quantity: _parseInt(m['quantity']),
+          createdAt: (m['createdAt'] as Timestamp?)?.toDate(),
+        ),
+      );
     }
   }
 
@@ -331,15 +352,20 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
   for (final d in bookDocs) {
     final m = d.data();
     final created = (m['createdAt'] as Timestamp?)?.toDate();
-    if (created != null && _inDateRange(created, periodStartDay, periodEndDay)) {
-      newBooks.add(BookListRow(
-        bookId: d.id,
-        title: '${m['title'] ?? '(Không tên)'}',
-        author: '${m['author'] ?? ''}'.trim(),
-        available: _parseInt(m['availableQuantity'] ?? m['available'] ?? m['quantity']),
-        quantity: _parseInt(m['quantity']),
-        createdAt: created,
-      ));
+    if (created != null &&
+        _inDateRange(created, periodStartDay, periodEndDay)) {
+      newBooks.add(
+        BookListRow(
+          bookId: d.id,
+          title: '${m['title'] ?? '(Không tên)'}',
+          author: '${m['author'] ?? ''}'.trim(),
+          available: _parseInt(
+            m['availableQuantity'] ?? m['available'] ?? m['quantity'],
+          ),
+          quantity: _parseInt(m['quantity']),
+          createdAt: created,
+        ),
+      );
     }
   }
   newBooks.sort((a, b) {
@@ -350,7 +376,9 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
     if (bd == null) return -1;
     return bd.compareTo(ad);
   });
-  final newBooksLimited = newBooks.length > 15 ? newBooks.sublist(0, 15) : newBooks;
+  final newBooksLimited = newBooks.length > 15
+      ? newBooks.sublist(0, 15)
+      : newBooks;
 
   // Inventory by category (book counts)
   final invByCat = <String, int>{};
@@ -359,13 +387,16 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
     final cid = '${m['categoryId'] ?? ''}'.trim();
     final label = cid.isNotEmpty
         ? (catNames[cid] ?? cid)
-        : ('${m['category'] ?? ''}'.trim().isNotEmpty ? '${m['category']}' : 'Khác');
+        : ('${m['category'] ?? ''}'.trim().isNotEmpty
+              ? '${m['category']}'
+              : 'Khác');
     invByCat[label] = (invByCat[label] ?? 0) + 1;
   }
   final invTotal = invByCat.values.fold<int>(0, (s, e) => s + e);
   final categoryInventoryPct = <(String, double, int)>[];
   if (invTotal > 0) {
-    final sorted = invByCat.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = invByCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
     for (var i = 0; i < sorted.length && i < 8; i++) {
       final e = sorted[i];
       categoryInventoryPct.add((e.key, (e.value / invTotal) * 100, e.value));
@@ -374,17 +405,25 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
 
   final catBorrSorted = borrowCountByCategory.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  final categoryBorrowCounts = catBorrSorted.take(10).map((e) => (e.key, e.value)).toList();
+  final categoryBorrowCounts = catBorrSorted
+      .take(10)
+      .map((e) => (e.key, e.value))
+      .toList();
 
   final authSorted = borrowCountByAuthor.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  final authorBorrowCounts = authSorted.take(10).map((e) => (e.key, e.value)).toList();
+  final authorBorrowCounts = authSorted
+      .take(10)
+      .map((e) => (e.key, e.value))
+      .toList();
 
   // Daily series in period
   final dayMap = <DateTime, int>{};
-  for (var t = periodStartDay;
-      !t.isAfter(periodEndDay);
-      t = t.add(const Duration(days: 1))) {
+  for (
+    var t = periodStartDay;
+    !t.isAfter(periodEndDay);
+    t = t.add(const Duration(days: 1))
+  ) {
     dayMap[DateTime(t.year, t.month, t.day)] = 0;
   }
   for (final d in borrowsInPeriod) {
@@ -414,7 +453,9 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
       monthBuckets[key] = (monthBuckets[key] ?? 0) + 1;
     }
   }
-  final borrowsByMonthLast12 = monthBuckets.entries.map((e) => (e.key, e.value)).toList();
+  final borrowsByMonthLast12 = monthBuckets.entries
+      .map((e) => (e.key, e.value))
+      .toList();
 
   // Top users
   final usrSort = borrowCountByUser.entries.toList()
@@ -448,13 +489,15 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
   final currentBorrowers = <BorrowerRow>[];
   for (final e in userActive.entries) {
     final disp = usersMap[e.key];
-    currentBorrowers.add(BorrowerRow(
-      userId: e.key,
-      displayName: disp?.$1 ?? e.key,
-      email: disp?.$2 ?? '',
-      activeCount: e.value,
-      overdueCount: userOverdueTickets[e.key] ?? 0,
-    ));
+    currentBorrowers.add(
+      BorrowerRow(
+        userId: e.key,
+        displayName: disp?.$1 ?? e.key,
+        email: disp?.$2 ?? '',
+        activeCount: e.value,
+        overdueCount: userOverdueTickets[e.key] ?? 0,
+      ),
+    );
   }
   currentBorrowers.sort((a, b) => b.activeCount.compareTo(a.activeCount));
 
@@ -465,13 +508,15 @@ LibraryStatisticsSnapshot computeLibraryStatistics({
   }
   for (final uid in overdueSet) {
     final disp = usersMap[uid];
-    overdueRows.add(BorrowerRow(
-      userId: uid,
-      displayName: disp?.$1 ?? uid,
-      email: disp?.$2 ?? '',
-      activeCount: userActive[uid] ?? 0,
-      overdueCount: userOverdueTickets[uid] ?? 0,
-    ));
+    overdueRows.add(
+      BorrowerRow(
+        userId: uid,
+        displayName: disp?.$1 ?? uid,
+        email: disp?.$2 ?? '',
+        activeCount: userActive[uid] ?? 0,
+        overdueCount: userOverdueTickets[uid] ?? 0,
+      ),
+    );
   }
   overdueRows.sort((a, b) => b.overdueCount.compareTo(a.overdueCount));
 

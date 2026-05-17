@@ -28,7 +28,8 @@ class ScanBookTab extends StatefulWidget {
   State<ScanBookTab> createState() => _ScanBookTabState();
 }
 
-class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStateMixin, RouteAware {
+class _ScanBookTabState extends State<ScanBookTab>
+    with SingleTickerProviderStateMixin, RouteAware {
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
@@ -46,7 +47,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
 
   /// Chỉ xử lý mã khi tab Quét đang hiển thị và dashboard là route hiện tại (không bị che).
   bool get _mayProcessScan =>
-      widget.scannerTabActive && !_routeCoveredByOverlay && (ModalRoute.of(context)?.isCurrent ?? false);
+      widget.scannerTabActive &&
+      !_routeCoveredByOverlay &&
+      (ModalRoute.of(context)?.isCurrent ?? false);
 
   Future<void> _syncCameraToPolicy() async {
     if (!mounted) return;
@@ -147,7 +150,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                 onDetect: (capture) async {
                   if (!_mayProcessScan) return;
                   if (_handling) return;
-                  final raw = capture.barcodes.isNotEmpty ? capture.barcodes.first.rawValue?.trim() : null;
+                  final raw = capture.barcodes.isNotEmpty
+                      ? capture.barcodes.first.rawValue?.trim()
+                      : null;
                   if (raw == null || raw.isEmpty) return;
 
                   if (raw == _lastValue) return;
@@ -155,7 +160,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                   _handling = true;
 
                   try {
-                    final soundOn = context.read<AppSettingsController>().scannerSoundEnabled;
+                    final soundOn = context
+                        .read<AppSettingsController>()
+                        .scannerSoundEnabled;
                     if (soundOn) {
                       SystemSound.play(SystemSoundType.alert);
                       HapticFeedback.mediumImpact();
@@ -172,9 +179,7 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
               ),
               // Làm nền tối để nổi khung scan.
               Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.2),
-                ),
+                child: Container(color: Colors.black.withOpacity(0.2)),
               ),
               Center(
                 child: SizedBox(
@@ -226,7 +231,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                             child: Container(
                               height: lineHeight,
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withOpacity(0.95),
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.95,
+                                ),
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),
@@ -263,7 +270,10 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                 right: 0,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.35),
                       borderRadius: BorderRadius.circular(999),
@@ -271,7 +281,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                     ),
                     child: Text(
                       t.scanAlignHint,
-                      style: AppTextStyles.caption.copyWith(color: Colors.white70),
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white70,
+                      ),
                     ),
                   ),
                 ),
@@ -281,9 +293,7 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
         ),
         Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.18),
-          ),
+          decoration: BoxDecoration(color: Colors.black.withOpacity(0.18)),
           child: Row(
             children: [
               Expanded(
@@ -292,7 +302,13 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                     if (!_mayProcessScan) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(AppLocalizations.of(context)!.scanTabNeedSwitchToScan)),
+                          SnackBar(
+                            content: Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.scanTabNeedSwitchToScan,
+                            ),
+                          ),
                         );
                       }
                       return;
@@ -309,7 +325,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                     foregroundColor: Colors.white70,
                     backgroundColor: Colors.white.withOpacity(0.06),
                     side: BorderSide(color: Colors.white.withOpacity(0.18)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     padding: EdgeInsets.zero,
                   ),
                   child: Column(
@@ -319,7 +337,10 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                       const SizedBox(height: 6),
                       Text(
                         AppLocalizations.of(context)!.scanTabUploadImage,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -328,12 +349,15 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => AppRoutes.pushRoot(context, AppRoutes.borrowHistory),
+                  onPressed: () =>
+                      AppRoutes.pushRoot(context, AppRoutes.borrowHistory),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     backgroundColor: Colors.white.withOpacity(0.06),
                     side: BorderSide(color: Colors.white.withOpacity(0.18)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     padding: EdgeInsets.zero,
                   ),
                   child: Column(
@@ -343,7 +367,10 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
                       const SizedBox(height: 6),
                       Text(
                         AppLocalizations.of(context)!.scanTabHistory,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
@@ -362,7 +389,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.needReSignIn)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.needReSignIn)));
       }
       return;
     }
@@ -379,7 +408,10 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
         return;
       }
       if (!mounted) return;
-      AppRoutes.openReturnBook(context, arguments: {'borrowRecordId': parsed.borrowRecordId});
+      AppRoutes.openReturnBook(
+        context,
+        arguments: {'borrowRecordId': parsed.borrowRecordId},
+      );
       return;
     }
 
@@ -400,7 +432,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
     final lookupKey = parsed.bookLookupKey.trim();
     if (lookupKey.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.qrInvalid)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.qrInvalid)),
+        );
       }
       return;
     }
@@ -415,7 +449,11 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
 
     if (book == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.bookNotFoundFromQr)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.bookNotFoundFromQr),
+          ),
+        );
       }
       return;
     }
@@ -432,17 +470,14 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
           Navigator.pop(ctx);
           await _borrowForCurrentUser(uid, book!.id);
         },
-        onReturnStudent: () async {
-          Navigator.pop(ctx);
-          await _returnForCurrentUser(uid, book!.id);
-        },
         onAdminBorrow: () {
           Navigator.pop(ctx);
           AppRoutes.openBorrowCreate(context, arguments: {'bookId': book!.id});
         },
         onAdminReturn: () {
           Navigator.pop(ctx);
-          AppRoutes.openReturnBook(context, arguments: {'bookId': book!.id});
+          // Trả sách chỉ theo phiếu mượn (LIB_RET:...) để tránh trả nhầm theo bookId.
+          AppRoutes.openReturnBook(context);
         },
       ),
     );
@@ -451,14 +486,23 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
   Future<void> _borrowForCurrentUser(String uid, String bookId) async {
     var loanDays = BorrowPolicy.defaultLoanDays;
     try {
-      final cfg = await FirebaseFirestore.instance.collection('library_settings').doc('config').get();
+      final cfg = await FirebaseFirestore.instance
+          .collection('library_settings')
+          .doc('config')
+          .get();
       final v = cfg.data()?['loanDays'];
       if (v is int && v > 0) loanDays = BorrowPolicy.clampToLoanRange(v);
     } catch (_) {}
     try {
-      await BorrowReturnService.borrowBook(userId: uid, bookId: bookId, loanDays: loanDays);
+      await BorrowReturnService.borrowBook(
+        userId: uid,
+        bookId: bookId,
+        loanDays: loanDays,
+      );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.borrowSuccess)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.borrowSuccess)),
+        );
       }
     } on BorrowReturnException catch (e) {
       if (mounted) {
@@ -468,26 +512,11 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.borrowFailed('$e'))));
-      }
-    }
-  }
-
-  Future<void> _returnForCurrentUser(String uid, String bookId) async {
-    try {
-      await BorrowReturnService.returnBook(userId: uid, bookId: bookId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.returnSuccess)));
-      }
-    } on BorrowReturnException catch (e) {
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_borrowErrMessage(context, e.code))),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.borrowFailed('$e')),
+          ),
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.returnFailed('$e'))));
       }
     }
   }
@@ -498,11 +527,15 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
       if (file == null) return;
 
       final capture = await _controller.analyzeImage(file.path);
-      final raw = capture?.barcodes.isNotEmpty == true ? capture!.barcodes.first.rawValue?.trim() : null;
+      final raw = capture?.barcodes.isNotEmpty == true
+          ? capture!.barcodes.first.rawValue?.trim()
+          : null;
       if (raw == null || raw.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context)!.noQrFoundInImage)),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.noQrFoundInImage),
+            ),
           );
         }
         return;
@@ -512,7 +545,9 @@ class _ScanBookTabState extends State<ScanBookTab> with SingleTickerProviderStat
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.cannotScanImage('$e'))),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.cannotScanImage('$e')),
+          ),
         );
       }
     }
@@ -523,7 +558,6 @@ class _BookActionSheet extends StatelessWidget {
   final Book book;
   final bool isStaff;
   final VoidCallback onBorrowStudent;
-  final VoidCallback onReturnStudent;
   final VoidCallback onAdminBorrow;
   final VoidCallback onAdminReturn;
 
@@ -531,7 +565,6 @@ class _BookActionSheet extends StatelessWidget {
     required this.book,
     required this.isStaff,
     required this.onBorrowStudent,
-    required this.onReturnStudent,
     required this.onAdminBorrow,
     required this.onAdminReturn,
   });
@@ -540,7 +573,9 @@ class _BookActionSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final t = AppLocalizations.of(context)!;
-    final availableColor = book.availableQuantity > 0 ? Colors.green : Colors.red;
+    final availableColor = book.availableQuantity > 0
+        ? Colors.green
+        : Colors.red;
 
     return SafeArea(
       child: Padding(
@@ -554,13 +589,25 @@ class _BookActionSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppLocalizations.of(context)!.bookInfoTitle, style: theme.textTheme.titleLarge),
+            Text(
+              AppLocalizations.of(context)!.bookInfoTitle,
+              style: theme.textTheme.titleLarge,
+            ),
             const SizedBox(height: 8),
-            Text(book.title.isEmpty ? t.scanBookUntitled : book.title, style: AppTextStyles.h3),
+            Text(
+              book.title.isEmpty ? t.scanBookUntitled : book.title,
+              style: AppTextStyles.h3,
+            ),
             const SizedBox(height: 6),
             Text(
-              t.scanBookRemaining('${book.availableQuantity}', '${book.quantity}'),
-              style: AppTextStyles.body.copyWith(color: availableColor, fontWeight: FontWeight.w700),
+              t.scanBookRemaining(
+                '${book.availableQuantity}',
+                '${book.quantity}',
+              ),
+              style: AppTextStyles.body.copyWith(
+                color: availableColor,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 12),
             Text(t.bookIdDebugLabel(book.id), style: theme.textTheme.bodySmall),
@@ -569,16 +616,10 @@ class _BookActionSheet extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: book.availableQuantity > 0 ? onBorrowStudent : null,
+                  onPressed: book.availableQuantity > 0
+                      ? onBorrowStudent
+                      : null,
                   child: Text(t.scanBorrowBookAction),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: onReturnStudent,
-                  child: Text(t.scanReturnBookAction),
                 ),
               ),
             ] else ...[
@@ -640,10 +681,7 @@ class _CornerMarker extends StatelessWidget {
   final Color color;
   final Alignment alignment;
 
-  const _CornerMarker({
-    required this.color,
-    required this.alignment,
-  });
+  const _CornerMarker({required this.color, required this.alignment});
 
   @override
   Widget build(BuildContext context) {
@@ -678,9 +716,7 @@ class _CornerMarker extends StatelessWidget {
       child: SizedBox(
         width: size,
         height: size,
-        child: DecoratedBox(
-          decoration: BoxDecoration(border: border),
-        ),
+        child: DecoratedBox(decoration: BoxDecoration(border: border)),
       ),
     );
   }

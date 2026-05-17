@@ -185,7 +185,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get systemFeaturesAiRecommendationsHint =>
-      'Bật/tắt khu vực gợi ý AI trên trang chủ.';
+      'Bật/tắt khu vực gợi ý sách trên trang chủ.';
 
   @override
   String get systemFeaturesStatistics => 'Thống kê';
@@ -312,6 +312,54 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get quickHistoryTab => 'Lịch sử';
+
+  @override
+  String get recommendationsTitle => 'Gợi ý cho bạn';
+
+  @override
+  String get recommendationsEmpty => 'Chưa có gợi ý. Hãy thử lại sau.';
+
+  @override
+  String get recommendationsLoadFailedTitle => 'Không tải được gợi ý';
+
+  @override
+  String get recommendationsLoadFailedHint =>
+      'Kiểm tra Wi‑Fi, URL FastAPI trong \"Quy tắc mượn & giới hạn\", route mặc định GET …/recommend/me, Bearer Firebase, và máy chủ API đang chạy.';
+
+  @override
+  String recommendationsLoadFailedHttp(String status) {
+    return 'Máy chủ trả lỗi HTTP $status.';
+  }
+
+  @override
+  String get recommendationsLoadFailedTimeout =>
+      'Hết giờ chờ kết nối. Thử lại sau.';
+
+  @override
+  String get recommendationsLoadFailedParse =>
+      'Dữ liệu từ máy chủ không đúng định dạng JSON.';
+
+  @override
+  String get recommendationsLoadFailedUnknown =>
+      'Đã xảy ra lỗi không xác định.';
+
+  @override
+  String get bookSimilarRecommendationsTitle => 'Sách tương tự';
+
+  @override
+  String get bookSimilarRecommendationsEmpty =>
+      'Chưa có sách tương tự cho cuốn này.';
+
+  @override
+  String get bookSimilarRecommendationsLoadFailedTitle =>
+      'Không tải được sách tương tự';
+
+  @override
+  String get bookSimilarRecommendationsLoadFailedHint =>
+      'Kiểm tra route GET …/recommend?book_id=… trên FastAPI, Bearer Firebase, và URL trong cấu hình thư viện.';
+
+  @override
+  String get refresh => 'Làm mới';
 
   @override
   String get recentBorrowsTitle => 'Mượn gần đây';
@@ -453,6 +501,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get borrowDateLabelShort => 'Ngày mượn';
+
+  @override
+  String get returnDateLabelShort => 'Ngày trả thực tế';
 
   @override
   String get dueDateLabelShort => 'Hạn trả';
@@ -951,6 +1002,80 @@ class AppLocalizationsVi extends AppLocalizations {
       'Nhấn giữ một cuốn sách để chọn nhiều, chạm để thêm hoặc bỏ chọn.';
 
   @override
+  String bookListBulkReplaceCover(Object count) {
+    return 'Đổi ảnh bìa ($count)';
+  }
+
+  @override
+  String bookListBulkReplaceCoverConfirm(Object count) {
+    return 'Chọn một ảnh làm bìa cho $count sách đã chọn?';
+  }
+
+  @override
+  String bookListBulkReplaceCoverDone(Object count) {
+    return 'Đã cập nhật ảnh bìa cho $count sách.';
+  }
+
+  @override
+  String bookListBulkReplaceCoverError(Object message) {
+    return 'Đổi ảnh hàng loạt thất bại: $message';
+  }
+
+  @override
+  String get bookListBulkReplaceCoverPerBook => 'Chọn ảnh từng sách';
+
+  @override
+  String get bookListBulkReplaceCoverPerBookTitle =>
+      'Đổi ảnh bìa theo từng sách đã chọn';
+
+  @override
+  String get bookListBulkReplaceCoverPerBookHint =>
+      'Mỗi sách chọn một ảnh riêng. Mỗi lần chọn sẽ upload Cloudinary và cập nhật đúng cuốn đó.';
+
+  @override
+  String get bookListBulkReplaceCoverPick => 'Chọn ảnh';
+
+  @override
+  String get bookListBulkReplaceCoverPicked => 'Đã cập nhật';
+
+  @override
+  String get bulkSelectMultipleTooltip => 'Chọn nhiều để thao tác hàng loạt';
+
+  @override
+  String get bulkSelectItemsHint =>
+      'Nhấn giữ một mục để chọn nhiều, chạm để bật/tắt.';
+
+  @override
+  String authorsBulkDeleteConfirm(Object count) {
+    return 'Xóa $count tác giả? Sách tham chiếu không bị xóa.';
+  }
+
+  @override
+  String authorsBulkDeleteResult(Object deleted) {
+    return 'Đã xóa $deleted tác giả.';
+  }
+
+  @override
+  String genresBulkDeleteConfirm(Object count) {
+    return 'Xóa $count thể loại?';
+  }
+
+  @override
+  String genresBulkDeleteResult(Object deleted) {
+    return 'Đã xóa $deleted thể loại.';
+  }
+
+  @override
+  String categoriesBulkDeleteConfirm(Object count) {
+    return 'Xóa tối đa $count danh mục không còn sách? Danh mục đang có sách sẽ bị bỏ qua.';
+  }
+
+  @override
+  String categoriesBulkDeleteResult(Object deleted, Object skipped) {
+    return 'Đã xóa $deleted. Bỏ qua (còn sách): $skipped.';
+  }
+
+  @override
   String get addBook => 'Thêm sách';
 
   @override
@@ -1124,6 +1249,28 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get finePaymentTitle => 'Thanh toán phạt';
+
+  @override
+  String get finePaymentEmptyList =>
+      'Không có khoản phạt chưa thu (phiếu trễ hạn, fineAmount > 0, chưa đánh dấu finePaid).';
+
+  @override
+  String get finePaymentRecorded => 'Đã ghi nhận thanh toán phạt.';
+
+  @override
+  String get finePaymentMarkPaid => 'Thu phạt';
+
+  @override
+  String get finePaymentStaffOnly =>
+      'Chỉ nhân sự (quản lý / admin) mới ghi nhận thanh toán phạt.';
+
+  @override
+  String get finePaymentConfirmTitle => 'Xác nhận thu phạt';
+
+  @override
+  String finePaymentConfirmBody(Object amount, Object ticket, Object method) {
+    return 'Thu $amount đ — phiếu $ticket — $method?';
+  }
 
   @override
   String get totalFineLabel => 'Tổng tiền phạt';
@@ -1328,6 +1475,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get manageBorrowHistory => 'Lịch sử mượn';
+
+  @override
+  String get manageFinePayment => 'Thanh toán phạt';
 
   @override
   String get manageCategoryManage => 'Quản lý danh mục sách';
@@ -1981,7 +2131,7 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get excelImportFormatHint =>
-      'File .xlsx — dòng 1 là tiêu đề cột. Bắt buộc: tên sách và tác giả (vd: title, author / tên sách, tác giả). Tùy chọn: danh mục (nhóm demo), thể loại (liên kết genres), mã thể loại (genre id), năm xuất bản, isbn, số lượng, mô tả.';
+      'File .xlsx — dòng 1 là tiêu đề cột. Bắt buộc: tên sách và tác giả (vd: title, author / tên sách, tác giả). Tùy chọn: danh mục (nhóm demo), thể loại (liên kết genres), mã thể loại (genre id), năm xuất bản, isbn, số lượng, mô tả, URL ảnh bìa (https://…) — cột ví dụ: image_url, cover url.';
 
   @override
   String get bookQuantityLabel => 'Số lượng';
@@ -2006,6 +2156,10 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get bookDetailQrScanHint => 'Quét mã để tra cứu sách / tạo phiếu mượn';
+
+  @override
+  String get bookDetailQrScanHintStudent =>
+      'Quét mã để tra cứu thông tin sách.';
 
   @override
   String get bookDetailIsbnTile => 'Mã ISBN';
@@ -2567,6 +2721,69 @@ class AppLocalizationsVi extends AppLocalizations {
       'Người dùng không thể mượn thêm nếu đã đạt số phiếu đang mượn này.';
 
   @override
+  String get libraryConfigFastApiBaseUrlLabel =>
+      'FastAPI base URL (gợi ý sách)';
+
+  @override
+  String get libraryConfigFastApiBaseUrlHelper =>
+      'Ví dụ: http://10.10.10.165:8000 (máy thật) hoặc https://api.example.com. Không dùng 10.0.2.2 trên máy thật.';
+
+  @override
+  String get libraryConfigFastApiBaseUrlInvalid =>
+      'Base URL không hợp lệ. Cần dạng http(s)://host:port';
+
+  @override
+  String get libraryConfigFastApiRecommendationsPathLabel =>
+      'Đường dẫn API gợi ý (sau base URL)';
+
+  @override
+  String get libraryConfigFastApiRecommendationsPathHelper =>
+      'Mặc định app: recommend/me → GET …/recommend/me?top_k=… (Bearer Firebase). Để trống để dùng mặc định.';
+
+  @override
+  String get libraryConfigFastApiRecommendationsPathInvalid =>
+      'Đường dẫn gợi ý không được chứa URL đầy đủ (chỉ nhập phần sau host, ví dụ api/v1/recommendations).';
+
+  @override
+  String get libraryConfigFastApiRecommendationsTopKLabel =>
+      'Số sách gợi ý (top_k)';
+
+  @override
+  String get libraryConfigFastApiRecommendationsTopKHelper =>
+      'Gửi lên FastAPI query top_k (1–50). Để trống = 10.';
+
+  @override
+  String get libraryConfigFastApiRecommendationsTopKInvalid =>
+      'top_k phải là số từ 1 đến 50.';
+
+  @override
+  String get libraryConfigFastApiDevUidLabel => 'X-Dev-Uid (tuỳ chọn, chỉ dev)';
+
+  @override
+  String get libraryConfigFastApiDevUidHelper =>
+      'Khi FastAPI bật DEV_AUTH_BYPASS, nhập Auth UID để gửi header X-Dev-Uid. Production: để trống.';
+
+  @override
+  String get libraryConfigFastApiBookRecommendPathLabel =>
+      'Path API gợi ý theo sách (GET …?book_id=)';
+
+  @override
+  String get libraryConfigFastApiBookRecommendPathHelper =>
+      'Mặc định: recommend → GET …/recommend?book_id=…&top_k=…';
+
+  @override
+  String get libraryConfigFastApiBookRecommendTopKLabel =>
+      'top_k (gợi ý theo sách)';
+
+  @override
+  String get libraryConfigFastApiBookRecommendTopKHelper =>
+      '1–50, mặc định 5. Để trống để dùng 5.';
+
+  @override
+  String get libraryConfigFastApiBookRecommendTopKInvalid =>
+      'top_k (theo sách) phải từ 1 đến 50.';
+
+  @override
   String get libraryConfigSave => 'Lưu cấu hình';
 
   @override
@@ -3037,6 +3254,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get excelSampleColDescription => 'Mô tả';
+
+  @override
+  String get excelSampleColImageUrl => 'URL ảnh bìa';
 
   @override
   String get excelTemplateFileName => 'mau_nhap_sach_5_dong.xlsx';

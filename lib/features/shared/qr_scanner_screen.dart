@@ -8,11 +8,7 @@ import '../../gen/l10n/app_localizations.dart';
 
 /// Màn hình quét QR dùng chung (trả về rawValue qua Navigator.pop)
 class QrScannerScreen extends StatefulWidget {
-  const QrScannerScreen({
-    super.key,
-    required this.title,
-    this.hint,
-  });
+  const QrScannerScreen({super.key, required this.title, this.hint});
 
   final String title;
   final String? hint;
@@ -81,11 +77,15 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                   controller: _controller,
                   onDetect: (capture) async {
                     if (_handled) return;
-                    final raw = capture.barcodes.isNotEmpty ? capture.barcodes.first.rawValue?.trim() : null;
+                    final raw = capture.barcodes.isNotEmpty
+                        ? capture.barcodes.first.rawValue?.trim()
+                        : null;
                     if (raw == null || raw.isEmpty) return;
                     _handled = true;
 
-                    final soundOn = context.read<AppSettingsController>().scannerSoundEnabled;
+                    final soundOn = context
+                        .read<AppSettingsController>()
+                        .scannerSoundEnabled;
                     if (soundOn) {
                       // Âm thanh hệ thống: phụ thuộc chế độ im lặng/âm lượng của máy.
                       // Dùng alert + rung để dễ nhận biết khi test.
@@ -132,4 +132,3 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     );
   }
 }
-

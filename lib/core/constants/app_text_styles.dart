@@ -40,13 +40,12 @@ class AppTextStyles {
   );
 
   static TextTheme get textTheme => const TextTheme(
-        headlineLarge: h1,
-        headlineMedium: h2,
-        titleLarge: h3,
-        bodyLarge: body,
-        bodyMedium: body,
-        bodySmall: caption,
-        labelSmall: small,
-      );
+    headlineLarge: h1,
+    headlineMedium: h2,
+    titleLarge: h3,
+    bodyLarge: body,
+    bodyMedium: body,
+    bodySmall: caption,
+    labelSmall: small,
+  );
 }
-

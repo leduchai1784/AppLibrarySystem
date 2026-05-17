@@ -13,10 +13,12 @@ class SystemFeatureSettingsScreen extends StatefulWidget {
   const SystemFeatureSettingsScreen({super.key});
 
   @override
-  State<SystemFeatureSettingsScreen> createState() => _SystemFeatureSettingsScreenState();
+  State<SystemFeatureSettingsScreen> createState() =>
+      _SystemFeatureSettingsScreenState();
 }
 
-class _SystemFeatureSettingsScreenState extends State<SystemFeatureSettingsScreen> {
+class _SystemFeatureSettingsScreenState
+    extends State<SystemFeatureSettingsScreen> {
   bool _saving = false;
 
   @override
@@ -51,7 +53,8 @@ class _SystemFeatureSettingsScreenState extends State<SystemFeatureSettingsScree
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         stream: LibraryConfigService.configRef.snapshots(),
         builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+          if (snap.connectionState == ConnectionState.waiting &&
+              !snap.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
           final data = snap.data?.data() ?? {};
@@ -92,7 +95,9 @@ class _SystemFeatureSettingsScreenState extends State<SystemFeatureSettingsScree
             children: [
               Text(
                 t.systemFeaturesSubtitle,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.hintColor,
+                ),
               ),
               const SizedBox(height: 12),
               _SectionCard(
@@ -102,14 +107,21 @@ class _SystemFeatureSettingsScreenState extends State<SystemFeatureSettingsScree
                     title: t.systemFeaturesScan,
                     subtitle: t.systemFeaturesScanHint,
                     value: flags[FeatureFlagsService.scanEnabled] ?? true,
-                    onChanged: _saving ? null : (v) => toggle(FeatureFlagsService.scanEnabled, v),
+                    onChanged: _saving
+                        ? null
+                        : (v) => toggle(FeatureFlagsService.scanEnabled, v),
                   ),
                   _SwitchTile(
                     title: t.systemFeaturesBorrowReturn,
                     subtitle: t.systemFeaturesBorrowReturnHint,
-                    value: flags[FeatureFlagsService.borrowReturnEnabled] ?? true,
-                    onChanged:
-                        _saving ? null : (v) => toggle(FeatureFlagsService.borrowReturnEnabled, v),
+                    value:
+                        flags[FeatureFlagsService.borrowReturnEnabled] ?? true,
+                    onChanged: _saving
+                        ? null
+                        : (v) => toggle(
+                            FeatureFlagsService.borrowReturnEnabled,
+                            v,
+                          ),
                   ),
                 ],
               ),
@@ -120,10 +132,15 @@ class _SystemFeatureSettingsScreenState extends State<SystemFeatureSettingsScree
                   _SwitchTile(
                     title: t.systemFeaturesAiRecommendations,
                     subtitle: t.systemFeaturesAiRecommendationsHint,
-                    value: flags[FeatureFlagsService.aiRecommendationsEnabled] ?? true,
+                    value:
+                        flags[FeatureFlagsService.aiRecommendationsEnabled] ??
+                        true,
                     onChanged: _saving
                         ? null
-                        : (v) => toggle(FeatureFlagsService.aiRecommendationsEnabled, v),
+                        : (v) => toggle(
+                            FeatureFlagsService.aiRecommendationsEnabled,
+                            v,
+                          ),
                   ),
                 ],
               ),
@@ -137,7 +154,8 @@ class _SystemFeatureSettingsScreenState extends State<SystemFeatureSettingsScree
                     value: flags[FeatureFlagsService.statisticsEnabled] ?? true,
                     onChanged: _saving
                         ? null
-                        : (v) => toggle(FeatureFlagsService.statisticsEnabled, v),
+                        : (v) =>
+                              toggle(FeatureFlagsService.statisticsEnabled, v),
                   ),
                 ],
               ),
@@ -169,7 +187,12 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 6),
             ...children,
           ],
@@ -203,4 +226,3 @@ class _SwitchTile extends StatelessWidget {
     );
   }
 }
-

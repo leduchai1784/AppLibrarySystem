@@ -45,18 +45,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final email = _emailController.text.trim();
 
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.emailLabel)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.emailLabel)));
       return;
     }
 
     // Validate đơn giản format email
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     if (!emailRegex.hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.invalidEmailFormat)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.invalidEmailFormat)));
       return;
     }
 
@@ -66,23 +66,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(t.resetEmailSentIfExists)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.resetEmailSentIfExists)));
 
       Navigator.pushReplacementNamed(context, AppRoutes.login);
     } on FirebaseAuthException {
       // Với lý do bảo mật, không tiết lộ email tồn tại hay không
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.resetEmailSentIfExists)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.resetEmailSentIfExists)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(t.tryAgainLaterDetails('$e'))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(t.tryAgainLaterDetails('$e'))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -98,9 +98,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final t = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t.forgotPasswordTitle),
-      ),
+      appBar: AppBar(title: Text(t.forgotPasswordTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -119,15 +117,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 style: theme.textTheme.bodySmall ?? AppTextStyles.caption,
               ),
               const SizedBox(height: 24),
-              Text(
-                t.emailLabel,
-                style: theme.textTheme.bodySmall,
-              ),
+              Text(t.emailLabel, style: theme.textTheme.bodySmall),
               const SizedBox(height: 6),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(prefixIcon: const Icon(Icons.email_outlined), hintText: t.emailLabel),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  hintText: t.emailLabel,
+                ),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -140,7 +138,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(t.sendResetLink.toUpperCase()),
@@ -160,4 +160,3 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
-

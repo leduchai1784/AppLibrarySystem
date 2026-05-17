@@ -3,22 +3,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/utils/book_cover_from_firestore.dart';
 import '../../gen/l10n/app_localizations.dart';
 import '../../services/feature_flags_service.dart';
-import '../recommendation/widgets/recommended_books_widget.dart';
+import '../borrow/data/borrow_repository.dart';
+import 'fastapi_recommended_books_section.dart';
 
 /// Trang chủ Sinh viên - Dashboard (theo mockup)
 class StudentHomeTab extends StatelessWidget {
   final VoidCallback onGoToHistoryTab;
 
-  const StudentHomeTab({
-    super.key,
-    required this.onGoToHistoryTab,
-  });
+  const StudentHomeTab({super.key, required this.onGoToHistoryTab});
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +61,7 @@ class StudentHomeTab extends StatelessWidget {
                 FeatureFlagsService.aiRecommendationsEnabled,
               );
               if (!enabled) return const SizedBox.shrink();
-              return const RecommendedBooksWidget();
+              return const FastApiRecommendedBooksSection();
             },
           ),
 
@@ -76,67 +73,107 @@ class StudentHomeTab extends StatelessWidget {
   }
 
   Widget _buildRecentSection(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('borrow_records');
-    if (!AppUser.isStaff && uid != null) {
-      query = query.where('userId', isEqualTo: uid);
-    }
-    query = query.orderBy('borrowDate', descending: true).limit(8);
+    return _RecentBorrowsSection(onSeeAll: onGoToHistoryTab);
+  }
+}
 
+/// Tải một lần tối đa 8 phiếu gần nhất qua [BorrowRepository] (không stream toàn bộ).
+class _RecentBorrowsSection extends StatefulWidget {
+  final VoidCallback onSeeAll;
+
+  const _RecentBorrowsSection({required this.onSeeAll});
+
+  @override
+  State<_RecentBorrowsSection> createState() => _RecentBorrowsSectionState();
+}
+
+class _RecentBorrowsSectionState extends State<_RecentBorrowsSection> {
+  final BorrowRepository _repo = BorrowRepository();
+  bool _loading = true;
+  Object? _error;
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _docs = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      setState(() {
+        _loading = false;
+        _docs = [];
+      });
+      return;
+    }
+    try {
+      final page = await _repo.fetchHistoryPage(
+        userIdEquals: uid,
+        statusFilter: 'all',
+        pageSize: 8,
+      );
+      if (!mounted) return;
+      setState(() {
+        _docs = page.docs;
+        _loading = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              t.recentBorrowsTitle,
-              style: AppTextStyles.h3,
-            ),
-            TextButton(
-              onPressed: onGoToHistoryTab,
-              child: Text(t.seeAll),
-            ),
+            Text(t.recentBorrowsTitle, style: AppTextStyles.h3),
+            TextButton(onPressed: widget.onSeeAll, child: Text(t.seeAll)),
           ],
         ),
         const SizedBox(height: 12),
-        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: query.snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Text(t.cannotLoadRecentData);
-            }
-
-            final docs = snapshot.data?.docs ?? [];
-            final items = docs.take(3).toList();
-            if (items.isEmpty) {
-              return Center(
-                child: Text(
-                  t.noRecentBorrows,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              );
-            }
-
-            return Column(
-              children: items
-                  .map(
-                    (d) => _RecentQrCard(
-                      recordId: d.id,
-                      bookId: (d.data()['bookId'] ?? '') as String,
-                      status: (d.data()['status'] ?? 'borrowing') as String,
-                      borrowDate: (d.data()['borrowDate'] as Timestamp?)?.toDate(),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
-        ),
+        if (_loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        else if (_error != null)
+          Text(t.cannotLoadRecentData)
+        else if (_docs.isEmpty)
+          Center(
+            child: Text(
+              t.noRecentBorrows,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          )
+        else
+          Column(
+            children: _docs
+                .take(3)
+                .map(
+                  (d) => _RecentQrCard(
+                    recordId: d.id,
+                    bookId: (d.data()['bookId'] ?? '') as String,
+                    status: (d.data()['status'] ?? 'borrowing') as String,
+                    borrowDate: (d.data()['borrowDate'] as Timestamp?)
+                        ?.toDate(),
+                  ),
+                )
+                .toList(),
+          ),
       ],
     );
   }
@@ -160,8 +197,12 @@ class _StudentRealtimeStatGrid extends StatelessWidget {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('books').snapshots(),
       builder: (context, booksSnap) {
-        if (booksSnap.connectionState == ConnectionState.waiting && !booksSnap.hasData) {
-          return const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()));
+        if (booksSnap.connectionState == ConnectionState.waiting &&
+            !booksSnap.hasData) {
+          return const SizedBox(
+            height: 120,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
         final bookDocs = booksSnap.data?.docs ?? [];
         final titleCount = bookDocs.length;
@@ -175,20 +216,31 @@ class _StudentRealtimeStatGrid extends StatelessWidget {
             .length;
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('borrow_records').where('userId', isEqualTo: uid).snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('borrow_records')
+              .where('userId', isEqualTo: uid)
+              .snapshots(),
           builder: (context, borrowsSnap) {
-            if (borrowsSnap.connectionState == ConnectionState.waiting && !borrowsSnap.hasData) {
-              return const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()));
+            if (borrowsSnap.connectionState == ConnectionState.waiting &&
+                !borrowsSnap.hasData) {
+              return const SizedBox(
+                height: 120,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             final records = borrowsSnap.data?.docs ?? [];
-            final active = records.where((d) => (d.data()['status'] ?? '') == 'borrowing').length;
+            final active = records
+                .where((d) => (d.data()['status'] ?? '') == 'borrowing')
+                .length;
             final now = DateTime.now();
             final startToday = DateTime(now.year, now.month, now.day);
             final endToday = startToday.add(const Duration(days: 1));
             var borrowsToday = 0;
             for (final d in records) {
               final bd = (d.data()['borrowDate'] as Timestamp?)?.toDate();
-              if (bd != null && !bd.isBefore(startToday) && bd.isBefore(endToday)) {
+              if (bd != null &&
+                  !bd.isBefore(startToday) &&
+                  bd.isBefore(endToday)) {
                 borrowsToday++;
               }
             }
@@ -271,7 +323,9 @@ class _StudentStatTile extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.45,
+        ),
         border: Border.all(color: theme.dividerColor.withValues(alpha: 0.32)),
       ),
       padding: const EdgeInsets.all(10),
@@ -296,7 +350,10 @@ class _StudentStatTile extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.topRight,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: badgeBg,
                       borderRadius: BorderRadius.circular(10),
@@ -343,7 +400,9 @@ class _StudentStatTile extends StatelessWidget {
                       style: AppTextStyles.caption.copyWith(
                         fontSize: 12,
                         height: 1.25,
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.92),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.92,
+                        ),
                         fontWeight: FontWeight.w500,
                       ),
                       maxLines: 2,
@@ -382,7 +441,9 @@ class _QuickActionTile extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.65),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.65,
+            ),
             border: Border.all(
               color: theme.dividerColor.withValues(alpha: 0.35),
             ),
@@ -466,14 +527,19 @@ class _RecentQrCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: theme.cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.45)),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.45),
+            ),
           ),
           child: Row(
             children: [
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
                 ),
                 child: BookCoverFromBookId(
                   bookId: bookId,
@@ -495,8 +561,9 @@ class _RecentQrCard extends StatelessWidget {
                       builder: (context, snapshot) {
                         final data = snapshot.data?.data();
                         final title = (data?['title'] ?? '').toString();
-                        final displayTitle =
-                            title.isNotEmpty ? title : t.bookTitleFallback(bookId);
+                        final displayTitle = title.isNotEmpty
+                            ? title
+                            : t.bookTitleFallback(bookId);
                         return Text(
                           displayTitle,
                           style: theme.textTheme.titleMedium?.copyWith(
@@ -540,10 +607,7 @@ class _RecentQrCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: Icon(
-                  Icons.more_vert,
-                  color: theme.hintColor,
-                ),
+                icon: Icon(Icons.more_vert, color: theme.hintColor),
                 onPressed: () {},
               ),
             ],

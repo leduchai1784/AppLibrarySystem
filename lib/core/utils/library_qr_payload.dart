@@ -10,7 +10,8 @@ class LibraryQrPayload {
   static const userPrefix = 'LIB_USER:';
 
   /// Payload in trên phiếu sau khi mượn (thủ thư quét khi trả).
-  static String borrowRecordForReturn(String borrowRecordId) => '$returnPrefix$borrowRecordId';
+  static String borrowRecordForReturn(String borrowRecordId) =>
+      '$returnPrefix$borrowRecordId';
 
   /// Payload cho sinh viên — thủ thư quét khi lập phiếu.
   static String userForBorrow(String firebaseUid) => '$userPrefix$firebaseUid';
@@ -37,11 +38,17 @@ class LibraryQrParseResult {
     final t = raw.trim();
     if (t.startsWith(LibraryQrPayload.returnPrefix)) {
       final id = t.substring(LibraryQrPayload.returnPrefix.length).trim();
-      return LibraryQrParseResult(borrowRecordId: id.isEmpty ? null : id, bookLookupKey: '');
+      return LibraryQrParseResult(
+        borrowRecordId: id.isEmpty ? null : id,
+        bookLookupKey: '',
+      );
     }
     if (t.startsWith(LibraryQrPayload.userPrefix)) {
       final id = t.substring(LibraryQrPayload.userPrefix.length).trim();
-      return LibraryQrParseResult(userId: id.isEmpty ? null : id, bookLookupKey: '');
+      return LibraryQrParseResult(
+        userId: id.isEmpty ? null : id,
+        bookLookupKey: '',
+      );
     }
     return LibraryQrParseResult(bookLookupKey: t);
   }

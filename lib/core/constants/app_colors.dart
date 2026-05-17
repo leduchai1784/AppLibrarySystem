@@ -13,6 +13,9 @@ class AppColors {
   static const Color textPrimaryLight = Color(0xFF212121);
   static const Color textSecondaryLight = Color(0xFF757575);
 
+  /// Alias tương thích code cũ: dùng nền sáng.
+  static const Color background = backgroundLight;
+
   // Dark mode
   static const Color primaryDark = Color(0xFF64B5F6);
   static const Color secondaryDark = Color(0xFFFFB74D);
@@ -21,4 +24,3 @@ class AppColors {
   static const Color textPrimaryDark = Color(0xFFFFFFFF);
   static const Color textSecondaryDark = Color(0xFFB0B0B0);
 }
-

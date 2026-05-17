@@ -24,7 +24,10 @@ class MyQrScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(t.myQrTitle)),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .snapshots(),
         builder: (context, snap) {
           final theme = Theme.of(context);
           if (snap.connectionState == ConnectionState.waiting) {
@@ -48,9 +51,13 @@ class MyQrScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            fullName.isEmpty ? t.myQrDefaultDisplayName : fullName,
+                            fullName.isEmpty
+                                ? t.myQrDefaultDisplayName
+                                : fullName,
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -71,13 +78,18 @@ class MyQrScreen extends StatelessWidget {
                           SelectableText(
                             payload,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 11,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             t.myQrHint,
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
@@ -92,4 +104,3 @@ class MyQrScreen extends StatelessWidget {
     );
   }
 }
-

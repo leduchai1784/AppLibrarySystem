@@ -19,18 +19,75 @@ class AdminManageTab extends StatelessWidget {
     final menuItems = <_MenuItem>[
       // Web: đã có lối tắt ở Tổng quan + Quầy làm việc — tránh lặp trong Vận hành.
       if (AppUser.isStaff && !kIsWeb)
-        _MenuItem(t.manageCurrentBorrows, Icons.bookmark_outline_rounded, AppRoutes.currentBorrows),
+        _MenuItem(
+          t.manageCurrentBorrows,
+          Icons.bookmark_outline_rounded,
+          AppRoutes.currentBorrows,
+        ),
       if (AppUser.isStaff && !kIsWeb)
-        _MenuItem(t.manageBorrowHistory, Icons.history_rounded, AppRoutes.borrowHistory),
-      _MenuItem(t.manageCategoryManage, Icons.category_outlined, AppRoutes.categoryManage),
-      if (AppUser.isStaff) _MenuItem(t.manageAuthors, Icons.person_search_outlined, AppRoutes.authorManage),
-      if (AppUser.isStaff) _MenuItem(t.manageGenres, Icons.label_outline_rounded, AppRoutes.genreManage),
-      if (AppUser.isStaff) _MenuItem(t.manageStationery, Icons.inventory_2_outlined, AppRoutes.stationeryManage),
-      if (AppUser.isAdmin) _MenuItem(t.manageUserManage, Icons.people_outline, AppRoutes.userManage),
-      if (AppUser.isAdmin) _MenuItem(t.manageLibraryConfig, Icons.tune_rounded, AppRoutes.libraryBusinessSettings),
-      if (AppUser.isAdmin) _MenuItem(t.systemFeaturesTitle, Icons.toggle_on_rounded, AppRoutes.systemFeatures),
-      if (AppUser.isAdmin) _MenuItem(t.manageAuditLog, Icons.history_edu_outlined, AppRoutes.auditLog),
-      _MenuItem(t.manageStatsReports, Icons.bar_chart_rounded, AppRoutes.statistics),
+        _MenuItem(
+          t.manageBorrowHistory,
+          Icons.history_rounded,
+          AppRoutes.borrowHistory,
+        ),
+      if (AppUser.isStaff)
+        _MenuItem(
+          t.manageFinePayment,
+          Icons.payments_outlined,
+          AppRoutes.finePayment,
+        ),
+      _MenuItem(
+        t.manageCategoryManage,
+        Icons.category_outlined,
+        AppRoutes.categoryManage,
+      ),
+      if (AppUser.isStaff)
+        _MenuItem(
+          t.manageAuthors,
+          Icons.person_search_outlined,
+          AppRoutes.authorManage,
+        ),
+      if (AppUser.isStaff)
+        _MenuItem(
+          t.manageGenres,
+          Icons.label_outline_rounded,
+          AppRoutes.genreManage,
+        ),
+      if (AppUser.isStaff)
+        _MenuItem(
+          t.manageStationery,
+          Icons.inventory_2_outlined,
+          AppRoutes.stationeryManage,
+        ),
+      if (AppUser.isAdmin)
+        _MenuItem(
+          t.manageUserManage,
+          Icons.people_outline,
+          AppRoutes.userManage,
+        ),
+      if (AppUser.isAdmin)
+        _MenuItem(
+          t.manageLibraryConfig,
+          Icons.tune_rounded,
+          AppRoutes.libraryBusinessSettings,
+        ),
+      if (AppUser.isAdmin)
+        _MenuItem(
+          t.systemFeaturesTitle,
+          Icons.toggle_on_rounded,
+          AppRoutes.systemFeatures,
+        ),
+      if (AppUser.isAdmin)
+        _MenuItem(
+          t.manageAuditLog,
+          Icons.history_edu_outlined,
+          AppRoutes.auditLog,
+        ),
+      _MenuItem(
+        t.manageStatsReports,
+        Icons.bar_chart_rounded,
+        AppRoutes.statistics,
+      ),
     ];
 
     return SingleChildScrollView(
@@ -104,12 +161,21 @@ class _ManageLinkTile extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.32)),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.45,
+            ),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.32),
+            ),
           ),
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: subtitle != null ? 10 : 9),
+          padding: EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: subtitle != null ? 10 : 9,
+          ),
           child: Row(
-            crossAxisAlignment: subtitle != null ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+            crossAxisAlignment: subtitle != null
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
             children: [
               DecoratedBox(
                 decoration: BoxDecoration(
@@ -142,7 +208,9 @@ class _ManageLinkTile extends StatelessWidget {
                         style: AppTextStyles.small.copyWith(
                           fontSize: 12.5,
                           height: 1.25,
-                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.92),
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.92,
+                          ),
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -156,7 +224,9 @@ class _ManageLinkTile extends StatelessWidget {
                 child: Icon(
                   Icons.chevron_right_rounded,
                   size: 22,
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.65),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.65,
+                  ),
                 ),
               ),
             ],

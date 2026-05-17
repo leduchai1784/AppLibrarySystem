@@ -16,14 +16,13 @@ class CategoryEnsureService {
     final existing = await col.where('name', isEqualTo: trimmed).limit(1).get();
     if (existing.docs.isNotEmpty) return;
 
-    await col.add({
-      'name': trimmed,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await col.add({'name': trimmed, 'createdAt': FieldValue.serverTimestamp()});
   }
 
   /// Gom mọi giá trị `category` (chuỗi) từ map sách, gọi [ensureByName] từng tên duy nhất.
-  static Future<void> ensureForBookMaps(Iterable<Map<String, dynamic>> books) async {
+  static Future<void> ensureForBookMaps(
+    Iterable<Map<String, dynamic>> books,
+  ) async {
     final seen = <String>{};
     for (final b in books) {
       final raw = b['category'];

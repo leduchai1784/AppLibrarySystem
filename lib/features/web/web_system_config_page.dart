@@ -21,12 +21,16 @@ class WebSystemConfigPage extends StatelessWidget {
       children: [
         Text(
           t.webSectionSystemConfig,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(
           t.systemFeaturesSubtitle,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).hintColor),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).hintColor),
         ),
         const SizedBox(height: 16),
         _LinkCard(
@@ -40,7 +44,8 @@ class WebSystemConfigPage extends StatelessWidget {
           title: t.manageLibraryConfig,
           subtitle: t.libraryBusinessSettingsSubtitle,
           icon: Icons.tune_rounded,
-          onTap: () => AppRoutes.pushRoot(context, AppRoutes.libraryBusinessSettings),
+          onTap: () =>
+              AppRoutes.pushRoot(context, AppRoutes.libraryBusinessSettings),
         ),
         const SizedBox(height: 10),
         _LinkCard(
@@ -80,7 +85,9 @@ class _LinkCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: theme.colorScheme.surface,
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.35)),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.35),
+            ),
           ),
           child: Row(
             children: [
@@ -98,11 +105,17 @@ class _LinkCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor, height: 1.3),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.hintColor,
+                        height: 1.3,
+                      ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -117,4 +130,3 @@ class _LinkCard extends StatelessWidget {
     );
   }
 }
-

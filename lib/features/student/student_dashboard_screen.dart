@@ -21,9 +21,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
 
   List<Widget> _buildTabChildren() {
     return [
-      StudentHomeTab(
-        onGoToHistoryTab: () => setState(() => _currentIndex = 2),
-      ),
+      StudentHomeTab(onGoToHistoryTab: () => setState(() => _currentIndex = 2)),
       const CurrentBorrowsScreen(embedInTab: true),
       const BorrowHistoryScreen(embedInTab: true),
       const LibrarySettingsTab(),
@@ -42,10 +40,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     ];
     return Scaffold(
       appBar: _buildAppBar(t),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _buildTabChildren(),
-      ),
+      body: IndexedStack(index: _currentIndex, children: _buildTabChildren()),
       bottomNavigationBar: _buildBottomBar(theme, navItems),
     );
   }
@@ -59,7 +54,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           centerTitle: true,
           actions: [
             NotificationBellButton(
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.notifications),
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.notifications),
             ),
             IconButton(
               icon: const Icon(Icons.account_circle_outlined),
@@ -89,7 +85,8 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     const barHeight = 74.0;
 
     final activeColor = theme.colorScheme.primary;
-    final inactiveColor = theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ?? Colors.grey;
+    final inactiveColor =
+        theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7) ?? Colors.grey;
 
     return SizedBox(
       height: barHeight + bottomPad,

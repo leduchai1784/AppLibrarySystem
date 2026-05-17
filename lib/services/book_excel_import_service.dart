@@ -21,11 +21,63 @@ import 'genre_author_resolve_service.dart';
 /// - isbn / mã isbn
 /// - quantity / số lượng / so_luong / qty
 /// - description / mô tả / mo_ta / desc
+/// - image_url / image url / ảnh bìa / cover url → URL ảnh bìa (`https://…`), không nhúng file ảnh trong .xlsx.
 ///
 /// Đọc file: ưu tiên [SpreadsheetDecoder] (ít lỗi với file Excel/Google Sheets),
 /// nếu lỗi mới dùng package `excel` làm dự phòng.
 class BookExcelImportService {
   BookExcelImportService._();
+
+  /// Trích URL http(s) đầu tiên trong chuỗi ô Excel.
+  ///
+  /// Hỗ trợ các trường hợp phổ biến:
+  /// - Người dùng ép text bằng dấu nháy đơn: `'https://...`
+  /// - Cell có công thức: `=HYPERLINK("https://...","...")`
+  /// - Có ký tự thừa trước/sau URL.
+  static String? _extractFirstHttpUrl(String raw) {
+    var s = raw.trim();
+    if (s.isEmpty) return null;
+    // Excel text prefix.
+    if (s.startsWith("'")) s = s.substring(1).trim();
+    // Nếu là công thức HYPERLINK, lấy URL trong dấu nháy.
+    final mHyper = RegExp(
+      r'HYPERLINK\(\"(https?://[^\"]+)\"',
+      caseSensitive: false,
+    ).firstMatch(s);
+    if (mHyper != null) return mHyper.group(1)?.trim();
+    // Bắt URL đầu tiên.
+    final m = RegExp(r'(https?://\S+)', caseSensitive: false).firstMatch(s);
+    if (m == null) return null;
+    var url = (m.group(1) ?? '').trim();
+    // Cắt dấu đóng/quote hay dấu phẩy cuối.
+    url = url.replaceAll(RegExp(r'[\"\\),;]+$'), '');
+    return url.isEmpty ? null : url;
+  }
+
+  /// Lấy URL ảnh đầu tiên hợp lệ trong nhóm dòng cùng ISBN.
+  static String? _firstHttpImageUrlFromRows(List<Map<String, dynamic>> rows) {
+    for (final r in rows) {
+      final u = (r['imageUrl'] ?? '').toString().trim();
+      final extracted = _extractFirstHttpUrl(u);
+      if (extracted != null) return extracted;
+    }
+    return null;
+  }
+
+  /// Chuẩn hoá ISBN để làm khoá gộp và tạo docId ổn định.
+  /// - Bỏ khoảng trắng, dấu gạch, ký tự lạ; giữ [0-9] và 'X' (ISBN-10 checksum).
+  /// - Trả về chuỗi UPPERCASE; rỗng nghĩa là coi như không có ISBN.
+  static String normalizeIsbn(String raw) {
+    final s = raw.trim().toUpperCase();
+    if (s.isEmpty) return '';
+    final kept = s.replaceAll(RegExp(r'[^0-9X]'), '');
+    return kept.trim();
+  }
+
+  /// Doc id cố định theo ISBN để tránh tạo trùng bản ghi.
+  /// Dùng prefix để dễ phân biệt với docId ngẫu nhiên cũ.
+  static String _bookDocIdFromIsbn(String normalizedIsbn) =>
+      'isbn_$normalizedIsbn';
 
   static final Map<String, String> _headerToField = {
     'title': 'title',
@@ -75,13 +127,45 @@ class BookExcelImportService {
     'mô tả': 'description',
     'mo ta': 'description',
     'desc': 'description',
+    'image_url': 'imageUrl',
+    'imageurl': 'imageUrl',
+    'image url': 'imageUrl',
+    'cover image url': 'imageUrl',
+    'url ảnh': 'imageUrl',
+    'url anh': 'imageUrl',
+    'url ảnh bìa': 'imageUrl',
+    'url anh bia': 'imageUrl',
+    'ảnh bìa': 'imageUrl',
+    'ảnh bìa url': 'imageUrl',
+    'anh bia': 'imageUrl',
+    'anh bia url': 'imageUrl',
+    'cover': 'imageUrl',
+    'cover_url': 'imageUrl',
+    'cover url': 'imageUrl',
+    'coverurl': 'imageUrl',
+    'hình ảnh': 'imageUrl',
+    'hinh anh': 'imageUrl',
+    'link ảnh': 'imageUrl',
+    'link anh': 'imageUrl',
+    'photo url': 'imageUrl',
+    'picture url': 'imageUrl',
+    'thumbnail_url': 'imageUrl',
+    'thumbnail url': 'imageUrl',
   };
 
   static String _normHeader(String raw) {
     var s = raw.toLowerCase().trim();
     s = s.replaceAll('_', ' ');
+    // Bỏ ký tự đặc biệt để header kiểu "Ảnh bìa (URL)" vẫn map được.
+    s = s.replaceAll(
+      RegExp(
+        r'[()\[\]{}<>.,:;!?/\\|`"'
+        '“”‘’]',
+      ),
+      ' ',
+    );
     s = s.replaceAll(RegExp(r'\s+'), ' ');
-    return s;
+    return s.trim();
   }
 
   static String _plainFromTextSpan(TextSpan span) {
@@ -107,11 +191,14 @@ class BookExcelImportService {
       TextCellValue(:final value) => _plainFromTextSpan(value),
       IntCellValue(:final value) => value.toString(),
       DoubleCellValue(:final value) =>
-        (value == value.roundToDouble()) ? value.round().toString() : value.toString(),
+        (value == value.roundToDouble())
+            ? value.round().toString()
+            : value.toString(),
       FormulaCellValue(:final formula) => formula,
       DateCellValue(:final year, :final month, :final day) =>
         '${day.toString().padLeft(2, '0')}/${month.toString().padLeft(2, '0')}/$year',
-      DateTimeCellValue() => '${v.day.toString().padLeft(2, '0')}/${v.month.toString().padLeft(2, '0')}/${v.year}',
+      DateTimeCellValue() =>
+        '${v.day.toString().padLeft(2, '0')}/${v.month.toString().padLeft(2, '0')}/${v.year}',
       TimeCellValue() => v.toString(),
       BoolCellValue(:final value) => value.toString(),
     };
@@ -145,9 +232,7 @@ class BookExcelImportService {
   static List<List<String>> _stringGridFromSpreadsheetRows(List<List> rows) {
     final out = <List<String>>[];
     for (final r in rows) {
-      out.add([
-        for (var i = 0; i < r.length; i++) _dynamicToString(r[i]),
-      ]);
+      out.add([for (var i = 0; i < r.length; i++) _dynamicToString(r[i])]);
     }
     _padGrid(out);
     return out;
@@ -157,7 +242,8 @@ class BookExcelImportService {
     final out = <List<String>>[];
     for (final row in sheet.rows) {
       out.add([
-        for (var i = 0; i < row.length; i++) _cellToString(i < row.length ? row[i] : null),
+        for (var i = 0; i < row.length; i++)
+          _cellToString(i < row.length ? row[i] : null),
       ]);
     }
     _padGrid(out);
@@ -173,10 +259,8 @@ class BookExcelImportService {
   }
 
   /// Trả về danh sách map dữ liệu Firestore (chưa ghi) và lỗi theo dòng.
-  static ({List<Map<String, dynamic>> books, List<String> parseErrors}) parseXlsx(
-    Uint8List bytes,
-    AppLocalizations t,
-  ) {
+  static ({List<Map<String, dynamic>> books, List<String> parseErrors})
+  parseXlsx(Uint8List bytes, AppLocalizations t) {
     Object? primaryError;
     try {
       final dec = SpreadsheetDecoder.decodeBytes(bytes);
@@ -211,29 +295,21 @@ class BookExcelImportService {
     } catch (e2) {
       return (
         books: <Map<String, dynamic>>[],
-        parseErrors: <String>[
-          t.excelErrReadFailed('$primaryError', '$e2'),
-        ],
+        parseErrors: <String>[t.excelErrReadFailed('$primaryError', '$e2')],
       );
     }
   }
 
-  static ({List<Map<String, dynamic>> books, List<String> parseErrors}) _parseFailed(
-    Object? primaryError,
-    AppLocalizations t,
-  ) {
+  static ({List<Map<String, dynamic>> books, List<String> parseErrors})
+  _parseFailed(Object? primaryError, AppLocalizations t) {
     return (
       books: <Map<String, dynamic>>[],
-      parseErrors: <String>[
-        t.excelErrReadFailedShort('$primaryError'),
-      ],
+      parseErrors: <String>[t.excelErrReadFailedShort('$primaryError')],
     );
   }
 
-  static ({List<Map<String, dynamic>> books, List<String> parseErrors}) _parseStringGrid(
-    List<List<String>> grid,
-    AppLocalizations t,
-  ) {
+  static ({List<Map<String, dynamic>> books, List<String> parseErrors})
+  _parseStringGrid(List<List<String>> grid, AppLocalizations t) {
     final errors = <String>[];
     final books = <Map<String, dynamic>>[];
 
@@ -253,11 +329,9 @@ class BookExcelImportService {
       }
     }
 
-    if (!colField.values.contains('title') || !colField.values.contains('author')) {
-      return (
-        books: books,
-        parseErrors: <String>[t.excelErrHeaderRow],
-      );
+    if (!colField.values.contains('title') ||
+        !colField.values.contains('author')) {
+      return (books: books, parseErrors: <String>[t.excelErrHeaderRow]);
     }
 
     for (var r = 1; r < grid.length; r++) {
@@ -272,6 +346,7 @@ class BookExcelImportService {
       String? genreNameCell;
       String? genreIdRawCell;
       int? publishedYear;
+      var imageUrlCell = '';
 
       for (final e in colField.entries) {
         final col = e.key;
@@ -313,6 +388,9 @@ class BookExcelImportService {
           case 'description':
             description = text;
             break;
+          case 'imageUrl':
+            imageUrlCell = text.trim();
+            break;
         }
       }
 
@@ -347,8 +425,13 @@ class BookExcelImportService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'totalBorrowCount': 0,
-        'imageUrl': '',
       };
+      final extractedUrl = _extractFirstHttpUrl(imageUrlCell);
+      if (extractedUrl != null) {
+        rowMap['imageUrl'] = extractedUrl;
+      } else {
+        rowMap['imageUrl'] = '';
+      }
       if (publishedYear != null) rowMap['publishedYear'] = publishedYear;
       if (genreNameCell != null) rowMap['_importGenreName'] = genreNameCell;
       if (genreIdRawCell != null) rowMap['_importGenreId'] = genreIdRawCell;
@@ -369,24 +452,168 @@ class BookExcelImportService {
   ) async {
     if (books.isEmpty) return (written: 0, error: null);
 
+    // Web: một số nguồn dữ liệu có thể trả Map bất biến → clone để đảm bảo luôn mutable
+    // (GenreAuthorResolveService dùng remove()/gán field).
+    final working = books.map((b) => Map<String, dynamic>.from(b)).toList();
+
     try {
-      await CategoryEnsureService.ensureForBookMaps(books);
-      await GenreAuthorResolveService.applyExcelLinks(books);
+      await CategoryEnsureService.ensureForBookMaps(working);
+      await GenreAuthorResolveService.applyExcelLinks(working);
     } catch (e) {
       return (written: 0, error: t.excelErrEnsureCategory('$e'));
     }
 
-    final ref = FirebaseFirestore.instance.collection('books');
-    const chunk = 450;
+    final col = FirebaseFirestore.instance.collection('books');
+
+    // 1) Gom theo ISBN (để gộp tồn kho nếu đã có) và tách nhóm không ISBN.
+    final noIsbnRows = <Map<String, dynamic>>[];
+    final isbnToRows = <String, List<Map<String, dynamic>>>{};
+    for (final b in working) {
+      final raw = (b['isbn'] ?? '').toString();
+      final norm = normalizeIsbn(raw);
+      if (norm.isEmpty) {
+        noIsbnRows.add(b);
+        continue;
+      }
+      (isbnToRows[norm] ??= <Map<String, dynamic>>[]).add(b);
+    }
+
+    // Số dòng hợp lệ đã xử lý (không phải số ISBN duy nhất).
     var written = 0;
 
+    // 2) So sánh ISBN với dữ liệu đã có:
+    // - Ưu tiên docId mới `isbn_<norm>` nếu đã tồn tại.
+    // - Nếu chưa có docId đó, tìm theo field `isbn == <norm>` (dữ liệu cũ auto-id).
+    // - Nếu có rồi: chỉ INCREMENT quantity/availableQuantity, không tạo sách mới.
+    final isbnKeys = isbnToRows.keys.toList()..sort();
+
+    // 2.1) Prefetch: map ISBN -> docRef hiện có (theo field isbn) để gộp vào data cũ.
+    final isbnToExistingDocRef =
+        <String, DocumentReference<Map<String, dynamic>>>{};
+    const whereInChunk = 30; // giới hạn whereIn
     try {
-      for (var i = 0; i < books.length; i += chunk) {
-        final end = (i + chunk > books.length) ? books.length : i + chunk;
+      for (var i = 0; i < isbnKeys.length; i += whereInChunk) {
+        final end = (i + whereInChunk > isbnKeys.length)
+            ? isbnKeys.length
+            : i + whereInChunk;
+        final part = isbnKeys.sublist(i, end);
+        final snap = await col.where('isbn', whereIn: part).get();
+        for (final d in snap.docs) {
+          final v = (d.data()['isbn'] ?? '').toString();
+          final norm = normalizeIsbn(v);
+          if (norm.isEmpty) continue;
+          // lấy doc đầu tiên (limit 1 theo isbn); nếu DB đang trùng isbn, đây là lý do nên migrate dọn dẹp.
+          isbnToExistingDocRef.putIfAbsent(norm, () => d.reference);
+        }
+      }
+    } catch (e) {
+      return (written: 0, error: e.toString());
+    }
+
+    // 2.2) Prefetch tồn tại của docId mới `isbn_<norm>` (để ưu tiên doc chuẩn hoá nếu đã có).
+    final isbnIdExists = <String, bool>{};
+    const idChunk = 80;
+    try {
+      for (var i = 0; i < isbnKeys.length; i += idChunk) {
+        final end = (i + idChunk > isbnKeys.length)
+            ? isbnKeys.length
+            : i + idChunk;
+        final part = isbnKeys.sublist(i, end);
+        final snaps = await Future.wait(
+          part.map((norm) => col.doc(_bookDocIdFromIsbn(norm)).get()),
+        );
+        for (var j = 0; j < part.length; j++) {
+          isbnIdExists[part[j]] = snaps[j].exists;
+        }
+      }
+    } catch (e) {
+      return (written: 0, error: e.toString());
+    }
+
+    // 2.3) Ghi: batch write theo chunk để tránh vượt giới hạn 500 ops.
+    const writeChunk = 350;
+    try {
+      for (var i = 0; i < isbnKeys.length; i += writeChunk) {
+        final end = (i + writeChunk > isbnKeys.length)
+            ? isbnKeys.length
+            : i + writeChunk;
+        final part = isbnKeys.sublist(i, end);
+        final batch = FirebaseFirestore.instance.batch();
+
+        for (final norm in part) {
+          final rows = isbnToRows[norm] ?? const <Map<String, dynamic>>[];
+          if (rows.isEmpty) continue;
+
+          var totalQty = 0;
+          for (final r in rows) {
+            final q = r['quantity'];
+            if (q is int) {
+              totalQty += q;
+            } else if (q is double) {
+              totalQty += q.round();
+            } else {
+              totalQty += int.tryParse(q?.toString() ?? '') ?? 1;
+            }
+          }
+          if (totalQty < 1) totalQty = 1;
+
+          // metadata: lấy từ dòng đầu (giống trước), nhưng luôn chuẩn hoá isbn
+          final src = Map<String, dynamic>.from(rows.first);
+          src['isbn'] = norm;
+          src.remove('_importGenreName');
+          src.remove('_importGenreId');
+
+          final coverUrl = _firstHttpImageUrlFromRows(rows);
+          src.remove('imageUrl');
+
+          // Chọn target doc:
+          // - Nếu docId chuẩn hoá đã tồn tại -> dùng docId đó.
+          // - Else nếu có doc cũ theo field isbn -> update doc đó.
+          // - Else tạo doc mới theo docId chuẩn hoá.
+          final idRef = col.doc(_bookDocIdFromIsbn(norm));
+          final hasId = isbnIdExists[norm] == true;
+          final existingByField = isbnToExistingDocRef[norm];
+          final target = hasId ? idRef : (existingByField ?? idRef);
+
+          final isNew = !hasId && existingByField == null;
+
+          final patch = <String, dynamic>{
+            ...src,
+            'quantity': FieldValue.increment(totalQty),
+            'availableQuantity': FieldValue.increment(totalQty),
+            'isAvailable': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          if (coverUrl != null) {
+            patch['imageUrl'] = coverUrl;
+          }
+          if (isNew) {
+            patch['createdAt'] = FieldValue.serverTimestamp();
+            patch['totalBorrowCount'] = src['totalBorrowCount'] ?? 0;
+            if (coverUrl == null) patch['imageUrl'] = '';
+          }
+
+          batch.set(target, patch, SetOptions(merge: true));
+          written += rows.length;
+        }
+
+        await batch.commit();
+      }
+    } catch (e) {
+      return (written: written, error: e.toString());
+    }
+
+    // 3) Các dòng không có ISBN: vẫn tạo doc mới (auto-id) như trước.
+    const batchChunk = 450;
+    try {
+      for (var i = 0; i < noIsbnRows.length; i += batchChunk) {
+        final end = (i + batchChunk > noIsbnRows.length)
+            ? noIsbnRows.length
+            : i + batchChunk;
         final batch = FirebaseFirestore.instance.batch();
         for (var j = i; j < end; j++) {
-          final doc = ref.doc();
-          batch.set(doc, books[j]);
+          final doc = col.doc();
+          batch.set(doc, noIsbnRows[j]);
         }
         await batch.commit();
         written += end - i;

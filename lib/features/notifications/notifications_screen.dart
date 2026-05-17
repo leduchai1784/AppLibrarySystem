@@ -22,7 +22,9 @@ class NotificationsScreen extends StatelessWidget {
       );
     }
 
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('notifications');
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection(
+      'notifications',
+    );
     if (!AppUser.isStaff) {
       query = query.where('userId', isEqualTo: uid);
     }
@@ -138,7 +140,9 @@ class NotificationsScreen extends StatelessWidget {
 
   static Future<void> _markAllRead(BuildContext context, String uid) async {
     try {
-      Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection('notifications');
+      Query<Map<String, dynamic>> q = FirebaseFirestore.instance.collection(
+        'notifications',
+      );
       if (!AppUser.isStaff) {
         q = q.where('userId', isEqualTo: uid);
       }
@@ -158,7 +162,9 @@ class NotificationsScreen extends StatelessWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.errorPrefix('$e'))),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.errorPrefix('$e')),
+          ),
         );
       }
     }

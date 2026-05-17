@@ -11,7 +11,7 @@ import '../../features/books/book_list_screen.dart';
 import '../../features/borrow/borrow_create_screen.dart';
 import '../../features/borrow/borrow_history_screen.dart';
 import '../../features/borrow/current_borrows_screen.dart';
-import '../../features/borrow/fine_screen.dart';
+import '../../features/borrow/fine_payment_screen.dart';
 import '../../features/borrow/return_screen.dart';
 import '../../features/categories/category_manage_screen.dart';
 import '../../features/admin/admin_dashboard_screen.dart';
@@ -28,16 +28,21 @@ import '../../features/notifications/notifications_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/statistics/statistics_screen.dart';
 import '../../features/users/user_manage_screen.dart';
+import '../../features/debug/fastapi_root_example_screen.dart';
 import '../../features/shared/create_qr_code_screen.dart';
 import '../../features/shared/my_qr_screen.dart';
+import '../../features/web/web_settings_page.dart';
 import '../../gen/l10n/app_localizations.dart';
+import '../guards/role_guard.dart';
 
 class AppRoutes {
   /// Khóa navigator gốc — dùng khi mở route từ body trong [IndexedStack] (dashboard mobile) để không bị lệch context.
-  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
 
   /// Dùng cho [RouteAware] (ví dụ [ScanBookTab]): tạm dừng camera tab Quét khi có màn đè như Tạo phiếu mượn.
-  static final RouteObserver<PageRoute<dynamic>> routeObserver = RouteObserver<PageRoute<dynamic>>();
+  static final RouteObserver<PageRoute<dynamic>> routeObserver =
+      RouteObserver<PageRoute<dynamic>>();
 
   static const String authCheck = '/';
   static const String login = '/login';
@@ -61,7 +66,7 @@ class AppRoutes {
   static const String returnBook = '/return-book';
   static const String borrowHistory = '/borrow-history';
   static const String currentBorrows = '/current-borrows';
-  static const String fine = '/fine';
+  static const String finePayment = '/fine-payment';
 
   // Admin
   static const String categoryManage = '/category-manage';
@@ -79,6 +84,7 @@ class AppRoutes {
   static const String notifications = '/notifications';
   static const String settings = '/settings';
   static const String myQr = '/my-qr';
+  static const String fastApiRootExample = '/fastapi-root-example';
 
   /// Mở màn trên [Navigator] gốc của [MaterialApp] (cần khi gọi từ dashboard/IndexedStack hoặc web shell,
   /// tránh route con bị che hoặc nhìn như màn trắng).
@@ -91,10 +97,10 @@ class AppRoutes {
     if (nav != null) {
       return nav.pushNamed<T>(route, arguments: arguments);
     }
-    return Navigator.of(context, rootNavigator: true).pushNamed<T>(
-      route,
-      arguments: arguments,
-    );
+    return Navigator.of(
+      context,
+      rootNavigator: true,
+    ).pushNamed<T>(route, arguments: arguments);
   }
 
   /// Mở [BorrowCreateScreen] qua route tường minh — ưu tiên [rootNavigatorKey] (ổn định trên mobile từ tab IndexedStack).
@@ -103,10 +109,7 @@ class AppRoutes {
     Map<String, dynamic>? arguments,
   }) {
     final route = MaterialPageRoute<T>(
-      settings: RouteSettings(
-        name: borrowCreate,
-        arguments: arguments,
-      ),
+      settings: RouteSettings(name: borrowCreate, arguments: arguments),
       builder: (_) => const BorrowCreateScreen(),
     );
     final nav = rootNavigatorKey.currentState;
@@ -120,7 +123,10 @@ class AppRoutes {
   ///
   /// Trước đây có trì hoãn `addPostFrameCallback`, nhưng dễ gây cảm giác “bấm không mở” trong một số layout web/mobile.
   /// Nếu cần tránh xung đột khi vừa đóng dialog/bottom sheet, hãy gọi hàm này sau khi pop xong.
-  static void openBorrowCreate(BuildContext context, {Map<String, dynamic>? arguments}) {
+  static void openBorrowCreate(
+    BuildContext context, {
+    Map<String, dynamic>? arguments,
+  }) {
     if (!context.mounted) return;
     pushBorrowCreate(context, arguments: arguments);
   }
@@ -131,10 +137,7 @@ class AppRoutes {
     Map<String, dynamic>? arguments,
   }) {
     final route = MaterialPageRoute<T>(
-      settings: RouteSettings(
-        name: returnBook,
-        arguments: arguments,
-      ),
+      settings: RouteSettings(name: returnBook, arguments: arguments),
       builder: (_) => const ReturnScreen(),
     );
     final nav = rootNavigatorKey.currentState;
@@ -144,57 +147,84 @@ class AppRoutes {
     return Navigator.of(context, rootNavigator: true).push<T>(route);
   }
 
-  static void openReturnBook(BuildContext context, {Map<String, dynamic>? arguments}) {
+  static void openReturnBook(
+    BuildContext context, {
+    Map<String, dynamic>? arguments,
+  }) {
     if (!context.mounted) return;
+    if (!RoleGuard.isStaff) {
+      final t = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(t.statsPermissionDenied)));
+      return;
+    }
     pushReturnBook(context, arguments: arguments);
   }
 
   static Map<String, WidgetBuilder> get routes => {
-        authCheck: (context) => const AuthCheckScreen(),
-        login: (context) {
-          final args = ModalRoute.of(context)?.settings.arguments;
-          final staffDenied = args is Map && args['staffOnlyWeb'] == true;
-          final adminWeb = args is Map && args['adminUseWebOnly'] == true;
-          return LoginScreen(
-            showWebStaffDeniedMessage: staffDenied,
-            showAdminUseWebMessage: adminWeb,
-          );
-        },
-        register: (context) => kIsWeb ? const _WebRegisterNotAllowedScreen() : const RegisterScreen(),
-        forgotPassword: (context) => const ForgotPasswordScreen(),
-        dashboard: (context) => const DashboardScreen(),
-        createQrCode: (context) => const CreateQrCodeScreen(),
-        adminDashboard: (context) => const AdminDashboardScreen(),
-        studentDashboard: (context) => const StudentDashboardScreen(),
-        bookList: (context) => const BookListScreen(),
-        bookDetail: (context) => const BookDetailScreen(),
-        addBook: (context) => const AddEditBookScreen(isEdit: false),
-        editBook: (context) => const AddEditBookScreen(isEdit: true),
-        borrowCreate: (context) => const BorrowCreateScreen(),
-        returnBook: (context) => const ReturnScreen(),
-        borrowHistory: (context) => const BorrowHistoryScreen(),
-        currentBorrows: (context) => const CurrentBorrowsScreen(),
-        fine: (context) => const FineScreen(),
-        categoryManage: (context) => const CategoryManageScreen(),
-        userManage: (context) => const UserManageScreen(),
-        statistics: (context) => const StatisticsScreen(),
-        libraryBusinessSettings: (context) => const LibraryBusinessSettingsScreen(),
-        systemFeatures: (context) => const SystemFeatureSettingsScreen(),
-        auditLog: (context) => const AuditLogScreen(),
-        authorManage: (context) => const AuthorManageScreen(),
-        genreManage: (context) => const GenreManageScreen(),
-        stationeryManage: (context) => const StationeryManageScreen(),
-        profile: (context) => const ProfileScreen(),
-        notifications: (context) => const NotificationsScreen(),
-        settings: (context) => Scaffold(
-          appBar: AppBar(title: Text(AppLocalizations.of(context)!.settingsTitle)),
-          body: const LibrarySettingsTab(),
+    authCheck: (context) => const AuthCheckScreen(),
+    login: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      final staffDenied = args is Map && args['staffOnlyWeb'] == true;
+      final adminWeb = args is Map && args['adminUseWebOnly'] == true;
+      return LoginScreen(
+        showWebStaffDeniedMessage: staffDenied,
+        showAdminUseWebMessage: adminWeb,
+      );
+    },
+    register: (context) =>
+        kIsWeb ? const _WebRegisterNotAllowedScreen() : const RegisterScreen(),
+    forgotPassword: (context) => const ForgotPasswordScreen(),
+    dashboard: (context) => const DashboardScreen(),
+    createQrCode: (context) => const CreateQrCodeScreen(),
+    adminDashboard: (context) => const AdminDashboardScreen(),
+    studentDashboard: (context) => const StudentDashboardScreen(),
+    bookList: (context) => const BookListScreen(),
+    bookDetail: (context) => const BookDetailScreen(),
+    addBook: (context) => const AddEditBookScreen(isEdit: false),
+    editBook: (context) => const AddEditBookScreen(isEdit: true),
+    borrowCreate: (context) => const BorrowCreateScreen(),
+    returnBook: (context) => const ReturnScreen(),
+    borrowHistory: (context) => const BorrowHistoryScreen(),
+    currentBorrows: (context) => const CurrentBorrowsScreen(),
+    finePayment: (context) => const FinePaymentScreen(),
+    categoryManage: (context) => const CategoryManageScreen(),
+    userManage: (context) => const UserManageScreen(),
+    statistics: (context) => const StatisticsScreen(),
+    libraryBusinessSettings: (context) => const LibraryBusinessSettingsScreen(),
+    systemFeatures: (context) => const SystemFeatureSettingsScreen(),
+    auditLog: (context) => const AuditLogScreen(),
+    authorManage: (context) => const AuthorManageScreen(),
+    genreManage: (context) => const GenreManageScreen(),
+    stationeryManage: (context) => const StationeryManageScreen(),
+    profile: (context) => const ProfileScreen(),
+    notifications: (context) => const NotificationsScreen(),
+    settings: (context) {
+      if (kIsWeb) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(AppLocalizations.of(context)!.settingsTitle),
+          ),
+          body: const WebSettingsPage(),
+        );
+      }
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.settingsTitle),
         ),
-        myQr: (context) => const MyQrScreen(),
-      };
+        body: const LibrarySettingsTab(),
+      );
+    },
+    myQr: (context) => const MyQrScreen(),
+    fastApiRootExample: (context) => const FastApiRootExampleScreen(),
+  };
 
   /// Sau khi xóa sách: đóng màn chi tiết / sửa và về [bookList], rồi hiện SnackBar trên navigator gốc.
-  static void finishBookDeletionAndOpenBookList(BuildContext context, {required String message}) {
+  static void finishBookDeletionAndOpenBookList(
+    BuildContext context, {
+    required String message,
+  }) {
     final nav = Navigator.of(context, rootNavigator: true);
     String? stoppedName;
     nav.popUntil((route) {
@@ -231,7 +261,11 @@ class _WebRegisterNotAllowedScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.phone_android, size: 56, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.phone_android,
+                  size: 56,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   t.webRegisterNotAllowedBody1,
@@ -242,7 +276,9 @@ class _WebRegisterNotAllowedScreen extends StatelessWidget {
                 Text(
                   t.webRegisterNotAllowedBody2,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.hintColor,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(

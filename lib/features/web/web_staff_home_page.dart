@@ -53,7 +53,9 @@ class WebStaffHomePage extends StatelessWidget {
                 for (final d in snapshot.data!.docs) {
                   final data = d.data();
                   final q = (data['quantity'] ?? 0) as int;
-                  final a = (data['availableQuantity'] ?? data['available'] ?? q) as int;
+                  final a =
+                      (data['availableQuantity'] ?? data['available'] ?? q)
+                          as int;
                   totalQty += q;
                   available += a;
                 }
@@ -125,12 +127,19 @@ class WebStaffHomePage extends StatelessWidget {
               _ActionChip(
                 label: t.quickCurrentBorrows,
                 icon: Icons.bookmark_outline,
-                onTap: () => AppRoutes.pushRoot(context, AppRoutes.currentBorrows),
+                onTap: () =>
+                    AppRoutes.pushRoot(context, AppRoutes.currentBorrows),
               ),
               _ActionChip(
                 label: t.quickHistory,
                 icon: Icons.history,
-                onTap: () => AppRoutes.pushRoot(context, AppRoutes.borrowHistory),
+                onTap: () =>
+                    AppRoutes.pushRoot(context, AppRoutes.borrowHistory),
+              ),
+              _ActionChip(
+                label: t.adminQuickFinePayment,
+                icon: Icons.payments_outlined,
+                onTap: () => AppRoutes.pushRoot(context, AppRoutes.finePayment),
               ),
               _ActionChip(
                 label: t.webQuickAddBook,
@@ -193,7 +202,12 @@ class _MetricTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(label, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    label,
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     value,
@@ -202,7 +216,12 @@ class _MetricTile extends StatelessWidget {
                       letterSpacing: -0.5,
                     ),
                   ),
-                  Text(sub, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+                  Text(
+                    sub,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
+                  ),
                 ],
               ),
             ),

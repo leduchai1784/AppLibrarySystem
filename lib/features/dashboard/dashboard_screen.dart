@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/guards/platform_guard.dart';
 import '../../core/routes/app_routes.dart';
 import '../../gen/l10n/app_localizations.dart';
 import '../../services/auth_service.dart';
@@ -14,13 +14,15 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb && AppUser.isStudent) {
+    if (PlatformGuard.shouldShowWebStudentGate()) {
       return const _WebStaffOnlyGate();
     }
-    if (!kIsWeb && AppUser.isAdmin) {
+    if (PlatformGuard.shouldShowMobileAdminGate()) {
       return const _MobileAdminUseWebGate();
     }
-    return AppUser.isStaff ? const AdminDashboardScreen() : const StudentDashboardScreen();
+    return AppUser.isStaff
+        ? const AdminDashboardScreen()
+        : const StudentDashboardScreen();
   }
 }
 
@@ -42,25 +44,37 @@ class _MobileAdminUseWebGate extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.language, size: 56, color: theme.colorScheme.primary),
+                  Icon(
+                    Icons.language,
+                    size: 56,
+                    color: theme.colorScheme.primary,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     t.adminUseWebTitle,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     t.adminUseWebBody,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor, height: 1.4),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.hintColor,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 28),
                   FilledButton(
                     onPressed: () async {
                       await AuthService.signOut();
                       if (context.mounted) {
-                        Navigator.pushReplacementNamed(context, AppRoutes.login);
+                        Navigator.pushReplacementNamed(
+                          context,
+                          AppRoutes.login,
+                        );
                       }
                     },
                     child: Text(t.commonSignOut),
@@ -92,7 +106,11 @@ class _WebStaffOnlyGate extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline, size: 56, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.lock_outline,
+                  size: 56,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   t.webStaffOnlyTitle,
@@ -103,7 +121,9 @@ class _WebStaffOnlyGate extends StatelessWidget {
                 Text(
                   t.webStaffOnlyBody,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.hintColor,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(

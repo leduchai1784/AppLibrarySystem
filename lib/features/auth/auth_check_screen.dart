@@ -1,6 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/guards/auth_guard.dart';
+import '../../core/guards/session_block_reason.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/auth_service.dart';
 
@@ -26,8 +27,8 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
 
     final user = AuthService.currentUser;
     if (user != null) {
-      // Nếu email chưa được xác thực thì buộc đăng xuất và quay về màn hình đăng nhập
-      if (!FirebaseAuth.instance.currentUser!.emailVerified) {
+      final emailBlock = AuthGuard.validateEmailVerified(user);
+      if (emailBlock != null) {
         await AuthService.signOut();
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, AppRoutes.login);
@@ -38,22 +39,13 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
 
       if (!mounted) return;
 
-      if (await AuthService.rejectWebSessionIfNotStaff()) {
+      final platformBlock = await AuthService.signOutIfPlatformAccessDenied();
+      if (platformBlock != null) {
         if (!mounted) return;
         Navigator.pushReplacementNamed(
           context,
           AppRoutes.login,
-          arguments: const {'staffOnlyWeb': true},
-        );
-        return;
-      }
-
-      if (await AuthService.rejectMobileSessionIfAdmin()) {
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.login,
-          arguments: const {'adminUseWebOnly': true},
+          arguments: platformBlock.loginRouteArguments,
         );
         return;
       }
@@ -68,10 +60,6 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

@@ -50,11 +50,17 @@ void setupGlobalErrorHandlers() {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Color(0xFFFF6B6B), size: 28),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Color(0xFFFF6B6B),
+                        size: 28,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          kDebugMode ? t.errorWidgetDebugTitle : t.errorWidgetReleaseTitle,
+                          kDebugMode
+                              ? t.errorWidgetDebugTitle
+                              : t.errorWidgetReleaseTitle,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -66,7 +72,9 @@ void setupGlobalErrorHandlers() {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    kDebugMode ? t.errorWidgetDebugDetailHint : t.errorWidgetReleaseHint,
+                    kDebugMode
+                        ? t.errorWidgetDebugDetailHint
+                        : t.errorWidgetReleaseHint,
                     style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                   ),
                   const SizedBox(height: 12),
@@ -77,7 +85,9 @@ void setupGlobalErrorHandlers() {
                       decoration: BoxDecoration(
                         color: const Color(0xFF2D2D2D),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFFF6B6B).withValues(alpha: 0.5)),
+                        border: Border.all(
+                          color: const Color(0xFFFF6B6B).withValues(alpha: 0.5),
+                        ),
                       ),
                       child: SelectionArea(
                         child: SingleChildScrollView(

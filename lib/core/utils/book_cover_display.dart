@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 /// Hiển thị ảnh bìa: URL `https://` hoặc [data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URLs) (base64 trong Firestore, không cần Storage).
@@ -33,6 +34,31 @@ void _putCachedDataUrlBytes(String dataUrl, Uint8List bytes) {
   }
 }
 
+String _optimizeCloudinaryUrl(String url, double targetWidth) {
+  if (url.contains('cloudinary.com') && url.contains('/upload/')) {
+    // Nếu url chưa có tham số biến đổi (chưa có thư mục dạng w_, h_, c_...) trước version tag
+    if (!url.contains(RegExp(r'/upload/[a-z_0-9,]+/v\d+'))) {
+      final w = targetWidth.isFinite && targetWidth > 0
+          ? (targetWidth * 1.5).round()
+          : 300;
+      final transform = 'w_$w,c_limit,q_auto,f_auto';
+      return url.replaceFirst('/upload/', '/upload/$transform/');
+    }
+  }
+  return url;
+}
+
+/// Helper function to generate optimized Cloudinary thumbnail URL
+String buildCloudinaryThumbUrl(String url, {int width = 80, int height = 120}) {
+  if (url.contains('cloudinary.com') && url.contains('/upload/')) {
+    if (!url.contains(RegExp(r'/upload/[a-z_0-9,]+/v\d+'))) {
+      final transform = 'w_$width,h_$height,c_fill,q_auto,f_webp';
+      return url.replaceFirst('/upload/', '/upload/$transform/');
+    }
+  }
+  return url;
+}
+
 Widget buildBookCoverDisplay({
   required String imageRef,
   required double width,
@@ -42,13 +68,18 @@ Widget buildBookCoverDisplay({
 }) {
   final url = imageRef.trim();
   final radius = borderRadius ?? BorderRadius.circular(12);
-  final ph = placeholder ??
+  final ph =
+      placeholder ??
       Icon(Icons.menu_book, size: width * 0.45, color: Colors.white70);
 
   if (url.isEmpty) {
     return ClipRRect(
       borderRadius: radius,
-      child: SizedBox(width: width, height: height, child: Center(child: ph)),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Center(child: ph),
+      ),
     );
   }
 
@@ -57,7 +88,11 @@ Widget buildBookCoverDisplay({
     if (comma <= 0 || comma >= url.length - 1) {
       return ClipRRect(
         borderRadius: radius,
-        child: SizedBox(width: width, height: height, child: Center(child: ph)),
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Center(child: ph),
+        ),
       );
     }
     try {
@@ -78,51 +113,44 @@ Widget buildBookCoverDisplay({
           fit: BoxFit.cover,
           alignment: Alignment.center,
           gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => SizedBox(width: width, height: height, child: Center(child: ph)),
+          errorBuilder: (_, __, ___) => SizedBox(
+            width: width,
+            height: height,
+            child: Center(child: ph),
+          ),
         ),
       );
     } catch (_) {
       return ClipRRect(
         borderRadius: radius,
-        child: SizedBox(width: width, height: height, child: Center(child: ph)),
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Center(child: ph),
+        ),
       );
     }
   }
 
-  final placeholderBox = SizedBox(width: width, height: height, child: Center(child: ph));
+  final placeholderBox = SizedBox(
+    width: width,
+    height: height,
+    child: Center(child: ph),
+  );
   return ClipRRect(
     borderRadius: radius,
-    child: Stack(
-      fit: StackFit.passthrough,
-      children: [
-        // Placeholder phía sau để tránh nhảy layout / trắng màn khi ảnh đang resolve.
-        placeholderBox,
-        Positioned.fill(
-          child: Image(
-            image: NetworkImage(url),
-            width: width,
-            height: height,
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-            filterQuality: FilterQuality.low,
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => placeholderBox,
-            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-              if (wasSynchronouslyLoaded) return child;
-              if (frame == null) {
-                // Chưa có frame đầu tiên: giữ placeholder phía sau.
-                return const SizedBox.shrink();
-              }
-              return AnimatedOpacity(
-                opacity: 1,
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                child: child,
-              );
-            },
-          ),
-        ),
-      ],
+    child: CachedNetworkImage(
+      imageUrl: _optimizeCloudinaryUrl(url, width),
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      fadeInDuration: const Duration(milliseconds: 120),
+      fadeOutDuration: const Duration(milliseconds: 80),
+      placeholder: (_, __) => placeholderBox,
+      errorWidget: (_, __, ___) => placeholderBox,
+      memCacheWidth: width.isFinite ? (width * 2).round() : null,
+      memCacheHeight: height.isFinite ? (height * 2).round() : null,
+      filterQuality: FilterQuality.low,
     ),
   );
 }
